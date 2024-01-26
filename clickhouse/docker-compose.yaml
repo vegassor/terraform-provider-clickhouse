@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.12
+    hostname: clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - "./clickhouse/configs/config.xml:/etc/clickhouse-server/config.xml:ro"
+      - "./clickhouse/configs/users.xml:/etc/clickhouse-server/users.xml:ro"
+      - "./clickhouse/configs/metrika.xml:/etc/clickhouse-server/metrika.xml:ro"
+      # - ./data/server-01:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144

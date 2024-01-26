@@ -1,0 +1,41 @@
+---
+name: test example
+input:
+  - name: a.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+  - name: b.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+checks:
+  - sql: select database from system.databases where database = 'my_db'
+    result: ['my_db']
+
+---
+name: test example
+input:
+  - name: a.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+  - name: b.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+checks:
+  - sql: select database from system.databases where database = 'my_db'
+    result: ['my_db']
