@@ -1,53 +1,70 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package provider
 
 import (
 	"context"
-	"net/http"
+	"fmt"
+	"github.com/vegassor/terraform-provider-clickhouse/internal/clickhouse_client"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
+// Ensure ClickHouseProvider satisfies various provider interfaces.
+var _ provider.Provider = &ClickHouseProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// ClickHouseProvider defines the provider implementation.
+type ClickHouseProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// ClickHouseProviderModel describes the provider data model.
+type ClickHouseProviderModel struct {
+	Username types.String `tfsdk:"username"`
+	Password types.String `tfsdk:"password"`
+	Host     types.String `tfsdk:"host"`
+	Port     types.Int64  `tfsdk:"port"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *ClickHouseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "clickhouse"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *ClickHouseProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
-				Optional:            true,
+			"host": schema.StringAttribute{
+				Required:    true,
+				Description: "ClickHouse host for HTTP protocol",
+			},
+			"port": schema.Int64Attribute{
+				Optional:    true,
+				Description: "ClickHouse port for HTTP protocol",
+			},
+			"username": schema.StringAttribute{
+				MarkdownDescription: "ClickHouse user",
+				Required:            true,
+			},
+			"password": schema.StringAttribute{
+				MarkdownDescription: "Password for ClickHouse user",
+				Required:            true,
+				Sensitive:           true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *ClickHouseProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data ClickHouseProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -55,30 +72,55 @@ func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.Config
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	var addr string
+	if data.Port.IsNull() {
+		addr = fmt.Sprintf("%s:9000", data.Host.ValueString())
+	} else {
+		addr = fmt.Sprintf("%s:%d", data.Host.ValueString(), data.Port.ValueInt64())
+	}
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
+	client, err := clickhouse_client.NewClickHouseClient(&clickhouse.Options{
+		Protocol: clickhouse.Native,
+		Addr:     []string{addr},
+		Auth: clickhouse.Auth{
+			Database: "default",
+			Username: data.Username.ValueString(),
+			Password: data.Password.ValueString(),
+		},
+		Settings: clickhouse.Settings{
+			"max_execution_time": 60,
+		},
+		DialTimeout: 30 * time.Second,
+		Compression: &clickhouse.Compression{
+			Method: clickhouse.CompressionLZ4,
+		},
+	})
+
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot connect to ClickHouse",
+			"Cannot connect to ClickHouse: "+err.Error(),
+		)
+	}
+
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
+func (p *ClickHouseProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewExampleResource,
+		NewDatabaseResource,
+		NewUserResource,
 	}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
+func (p *ClickHouseProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &ClickHouseProvider{
 			version: version,
 		}
 	}
