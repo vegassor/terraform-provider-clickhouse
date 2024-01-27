@@ -38,7 +38,7 @@ class YamlItem(pytest.Item):
 
 
 def pytest_collect_file(parent, file_path: pathlib.PosixPath) -> Generator[YamlFile, None, None]:
-    if file_path.suffix == '.yaml':
+    if file_path.suffix == '.yaml' and not file_path.name.startswith('docker'):
         return YamlFile.from_parent(parent, path=file_path)
 
 

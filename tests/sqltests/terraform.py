@@ -2,14 +2,14 @@ import subprocess
 from .types import TfChException
 
 
-class TerraformLaunch:
-    def __init__(self, test_dir):
-        self.test_dir = test_dir
+class Terraform:
+    def __init__(self, cwd):
+        self.cwd = cwd
 
     def init(self):
         result = subprocess.run(
             ['terraform', 'init'],
-            cwd=self.test_dir,
+            cwd=self.cwd,
             capture_output=True,
             text=True,
         )
@@ -19,9 +19,9 @@ class TerraformLaunch:
     def apply(self):
         result = subprocess.run(
             ['terraform', 'apply', '-auto-approve'],
-            cwd=self.test_dir,
+            cwd=self.cwd,
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
-            raise TfChException('terraform apply failed', result)  # TODO: add more info
+            raise TfChException('terraform apply failed', result)

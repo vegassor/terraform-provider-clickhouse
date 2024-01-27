@@ -1,0 +1,46 @@
+---
+name: Create database resource
+input:
+  - name: db.tf
+    content: |
+      resource "clickhouse_user" "user_sha256_hash_and_salt" {
+        name = "user1"
+
+        identified_with = {
+          sha256_hash = {
+            hash = "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+            salt = "aaabbb"
+          }
+        }
+      }
+
+      resource "clickhouse_user" "user_no_salt" {
+        name = "user2"
+
+        identified_with = {
+          sha256_hash = {
+            hash = "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+          }
+        }
+      }
+
+      resource "clickhouse_user" "user_sha256_password" {
+        name = "user3"
+
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+checks:
+  - query: >
+      select
+        name,
+        storage,
+        auth_type
+      from system.users
+      where name like 'user%'
+      order by name
+    result:
+      - ['user1', 'local_directory', 'sha256_password']
+      - ['user2', 'local_directory', 'sha256_password']
+      - ['user3', 'local_directory', 'sha256_password']

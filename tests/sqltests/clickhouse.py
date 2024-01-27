@@ -1,10 +1,14 @@
+import http
 import json
+import subprocess
+import time
 from functools import cached_property
+from http.client import HTTPConnection
 from uuid import UUID
 
 import clickhouse_connect
 
-from .types import TestCheck
+from .types import TestCheck, TfChException
 
 
 class UUIDEncoder(json.JSONEncoder):
@@ -16,8 +20,22 @@ class UUIDEncoder(json.JSONEncoder):
 
 class ClickHouseTestInstallation:
     # TODO: make context manager?
+
+    def __init__(self, cwd):
+        self.cwd = cwd
+
     def prepare(self) -> None:
         """Up ClickHouse instance with docker-compose"""
+        result = subprocess.run(
+            ['docker-compose', 'up', '-d'],
+            cwd=self.cwd,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise TfChException('ClickHouse initialization failed', result)
+
+        self._check_clickhouse()
 
     def perform_check(self, check: TestCheck) -> None:
         query_result = self._client.query(check.query)
@@ -29,6 +47,14 @@ class ClickHouseTestInstallation:
 
     def cleanup(self) -> None:
         """Delete ClickHouse instance with docker-compose"""
+        result = subprocess.run(
+            ['docker-compose', 'down'],
+            cwd=self.cwd,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise TfChException('ClickHouse initialization failed', result)
 
     @cached_property
     def _client(self):
@@ -38,3 +64,16 @@ class ClickHouseTestInstallation:
             username='default',
             password='default',
         )
+
+    def _check_clickhouse(self) -> None:
+        max_attempts = 10
+        attempts = 0
+        while attempts < max_attempts:
+            try:
+                self._client.ping()
+                break
+            except Exception:
+                attempts += 1
+                time.sleep(1)
+        else:
+            raise TfChException('Cannot connect to ClickHouse instance', self)

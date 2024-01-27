@@ -3,7 +3,7 @@
 # SALT 'aaabbb'
 # HOST ANY
 resource "clickhouse_user" "user_sha256_hash_and_salt" {
-  name = "user3"
+  name = "user1"
 
   identified_with = {
     sha256_hash = {

@@ -1,5 +1,5 @@
 PROVIDER_VERSION = 0.1
-
+CH_DOCKER_DIR = tests/sqltests/fixtures/clickhouse
 default: build
 
 generate:
@@ -26,8 +26,8 @@ testsql:
 	cd tests && pytest -v -s
 
 chup:
-	cd clickhouse && docker-compose up -d
+	cd $(CH_DOCKER_DIR) && docker-compose up -d
 chdn:
-	cd clickhouse && docker-compose down
+	cd $(CH_DOCKER_DIR) && docker-compose down
 chrs:
-	cd clickhouse && docker-compose down && docker-compose up -d
+	cd $(CH_DOCKER_DIR) && docker-compose down && docker-compose up -d
