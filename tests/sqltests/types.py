@@ -20,7 +20,7 @@ class TestCase(BaseModel):
 
 class TestSuite(BaseModel):
     name: str
-    tests: list[TestCase]
+    testcases: list[TestCase]
 
 
 class TfChException(Exception):

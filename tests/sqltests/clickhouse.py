@@ -1,9 +1,7 @@
-import http
 import json
 import subprocess
 import time
 from functools import cached_property
-from http.client import HTTPConnection
 from uuid import UUID
 
 import clickhouse_connect
