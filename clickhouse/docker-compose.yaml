@@ -8,9 +8,9 @@ services:
       - "8123:8123"
       - "9000:9000"
     volumes:
-      - "./clickhouse/configs/config.xml:/etc/clickhouse-server/config.xml:ro"
-      - "./clickhouse/configs/users.xml:/etc/clickhouse-server/users.xml:ro"
-      - "./clickhouse/configs/metrika.xml:/etc/clickhouse-server/metrika.xml:ro"
+      - "./configs/config.xml:/etc/clickhouse-server/config.xml:ro"
+      - "./configs/users.xml:/etc/clickhouse-server/users.xml:ro"
+      - "./configs/metrika.xml:/etc/clickhouse-server/metrika.xml:ro"
       # - ./data/server-01:/var/lib/clickhouse
     ulimits:
       nofile:

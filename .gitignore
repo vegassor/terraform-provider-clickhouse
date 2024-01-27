@@ -1,4 +1,6 @@
+local/
 .venv
+__pycache__
 *.dll
 *.exe
 .DS_Store
@@ -16,6 +18,7 @@ website/node_modules
 .vagrant/
 *.backup
 ./*.tfstate
+*.terraform.lock.hcl
 .terraform/
 *.log
 *.bak

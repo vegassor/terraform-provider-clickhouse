@@ -1,34 +1,17 @@
-import pytest, yaml
-from typing import Any
+import pathlib
+from typing import Generator
 
-from pydantic import BaseModel
+import pytest
+import yaml
 
-class TfConfigFile(BaseModel):
-    name: str
-    content: str
-
-class TestCheck(BaseModel):
-    sql: str
-    result: Any
-
-class TestCase(BaseModel):
-    name: str
-    input: list[TfConfigFile]
-    checks: list[TestCheck]
-
-class TestSuite(BaseModel):
-    tests: list[TestCase]
-
-def pytest_collect_file(parent, file_path):
-    if file_path.suffix == ".yaml":
-        return YamlFile.from_parent(parent, path=file_path)
+from sqltests import TestSuite, run_tests
 
 
 class YamlFile(pytest.File):
     def collect(self):
         raw = yaml.safe_load_all(self.path.open(encoding="utf-8"))
-        spec = TestSuite(tests=raw)
-        yield YamlItem.from_parent(self, name=self.path.name, spec=spec)
+        spec = TestSuite(name=self.path.name, tests=raw)
+        yield YamlItem.from_parent(self, name=spec.name, spec=spec)
 
 
 class YamlItem(pytest.Item):
@@ -37,8 +20,7 @@ class YamlItem(pytest.Item):
         self.ts = spec
 
     def runtest(self) -> None:
-        if self.ts.tests[0].checks[0].result != ['mydb']:
-            raise TfChException(self, 'TODO', 'todo')
+        run_tests(self.ts)
 
     def repr_failure(self, excinfo):
         """Called when self.runtest() raises an exception."""
@@ -55,5 +37,10 @@ class YamlItem(pytest.Item):
         return self.path, 0, f"usecase: {self.name}"
 
 
+def pytest_collect_file(parent, file_path: pathlib.PosixPath) -> Generator[YamlFile, None, None]:
+    if file_path.suffix == '.yaml':
+        return YamlFile.from_parent(parent, path=file_path)
+
+
 class TfChException(Exception):
-    """Custom exception for error reporting."""
+    pass
