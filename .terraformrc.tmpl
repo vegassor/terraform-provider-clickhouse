@@ -1,11 +1,11 @@
 provider_installation {
   dev_overrides {
-    "registry.terraform.io/vegassor/clickhouse" = "/home/person/myrepos/terraform-provider-clickhouse/local/bin"
+    "registry.terraform.io/vegassor/clickhouse" = "${PROVIDER_DIR}/local/bin"
   }
 
   filesystem_mirror {
     include = ["registry.terraform.io/vegassor/*"]
-    path = "/home/person/myrepos/terraform-provider-clickhouse/local"
+    path = "${PROVIDER_DIR}/local"
   }
 
   direct {

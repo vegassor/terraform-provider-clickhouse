@@ -72,8 +72,12 @@ jobs:
         with:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
-      - name: Build provider binary
-        run: make build
+      - name: Prepare for tests
+        run: |
+          make init-config
+          make build
       - name: Run SQL tests
         timeout-minutes: 15
+        env:
+          TF_CLI_CONFIG_FILE: ${{ github.workspace }}/.terraformrc
         run: make testsql

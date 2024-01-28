@@ -20,6 +20,7 @@ website/node_modules
 ./*.tfstate
 *.terraform.lock.hcl
 .terraform/
+.terraformrc
 *.log
 *.bak
 *~

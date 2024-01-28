@@ -17,6 +17,7 @@ build-prod:
 	exit 1
 
 init-config:
+	PROVIDER_DIR=$(PWD) envsubst < .terraformrc.tmpl > .terraformrc
 	ln -s $(PWD)/.terraformrc ~/.terraformrc
 
 test:
