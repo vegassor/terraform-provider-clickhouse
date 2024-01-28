@@ -1,4 +1,3 @@
-import dataclasses
 import os
 import shutil
 import tempfile
@@ -9,13 +8,6 @@ import yaml
 from .clickhouse import ClickHouseTestInstallation
 from .terraform import Terraform
 from .types import TestSuite, TestCase, TestCheck, TfConfigFile
-
-
-@dataclasses.dataclass(frozen=True)
-class Context:
-    terraform: Terraform
-    clickhouse: ClickHouseTestInstallation
-    cwd: str
 
 
 class YamlFile(pytest.File):
@@ -39,23 +31,23 @@ class YamlItem(pytest.Item):
         source_dir = f'{os.path.dirname(__file__)}/fixtures/'
         shutil.copytree(source_dir, self.cwd,  dirs_exist_ok=True)
 
-        chi = ClickHouseTestInstallation(f'{self.cwd}/clickhouse')
-        chi.prepare()
+        with ClickHouseTestInstallation(f'{self.cwd}/clickhouse') as chi:
+            tf = Terraform(self.cwd)
+            tf.init()
 
-        tf = Terraform(self.cwd)
-        tf.init()
+            for testcase in self.suite.testcases:
+                self._prepare_test(testcase)
 
-        for testcase in self.suite.testcases:
-            self._prepare_test(testcase)
+                tf.apply()
+                for check in testcase.checks:
+                    chi.perform_check(check)
 
-            tf.apply()
-            for check in testcase.checks:
-                chi.perform_check(check)
+                self._clean_after_test(testcase)
 
-            self._clean_after_test(testcase)
-
-        chi.cleanup()
         shutil.rmtree(self.cwd)
+
+    def __del__(self):
+        shutil.rmtree(self.cwd, ignore_errors=True)
 
     def _prepare_test(self, case: TestCase):
         for file_data in case.input:

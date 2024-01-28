@@ -17,11 +17,17 @@ class UUIDEncoder(json.JSONEncoder):
 
 
 class ClickHouseTestInstallation:
-    # TODO: make context manager?
-
     def __init__(self, cwd):
         self.cwd = cwd
 
+    def __enter__(self):
+        self.prepare()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()
+
+    # TODO: Choose random port to allow parallel execution?
     def prepare(self) -> None:
         """Up ClickHouse instance with docker-compose"""
         result = subprocess.run(
