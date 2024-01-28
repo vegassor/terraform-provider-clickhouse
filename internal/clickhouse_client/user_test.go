@@ -24,5 +24,5 @@ WHERE "name" = 'my_user'`
 	conn.EXPECT().Query(ctx, expectedQuery).Return(rows, nil).Times(1)
 
 	client := ClickHouseClient{Conn: conn}
-	client.GetUser(ctx, "my_user")
+	_, _ = client.GetUser(ctx, "my_user")
 }
