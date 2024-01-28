@@ -1,0 +1,28 @@
+---
+name: Create database resource
+input:
+  - name: db.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+checks:
+  - query: select database, engine, comment from system.databases where database = 'my_db'
+    result: [['my_db', 'Atomic', 'Example DB']]
+---
+name: Re-create database resource
+input:
+  - name: db.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db2"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+checks:
+  - query: select database, engine, comment from system.databases where database = 'my_db'
+    result: []
+  - query: select database, engine, comment from system.databases where database = 'my_db2'
+    result: [['my_db2', 'Atomic', 'Example DB']]

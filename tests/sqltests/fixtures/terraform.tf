@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     clickhouse = {
-      source = "vegassor/clickhouse"
+      source  = "vegassor/clickhouse"
     }
   }
 }

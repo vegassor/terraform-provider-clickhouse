@@ -115,11 +115,10 @@ func (client *ClickHouseClient) DropUser(ctx context.Context, user string) error
 
 func (client *ClickHouseClient) GetUser(ctx context.Context, name string) (ClickHouseUser, error) {
 	query := fmt.Sprintf(
-		`SELECT 
-    		"name", "auth_type", "host_ip", "host_names",
-       		"host_names_regexp", "host_names_like", "default_database"
-		FROM "system"."users"
-		WHERE "name" = %s`,
+		`SELECT "name", "auth_type", "host_ip", "host_names",
+"host_names_regexp", "host_names_like", "default_database"
+FROM "system"."users"
+WHERE "name" = %s`,
 		QuoteValue(name),
 	)
 

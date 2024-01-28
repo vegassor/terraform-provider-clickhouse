@@ -21,6 +21,7 @@ ClickHouse user
 
 ### Optional
 
+- `default_database` (String)
 - `hosts` (Attributes) Hosts from which user is allowed to connect to ClickHouse. If unset, then ANY host. If set to empty map ({}) - NONE - user won't be able to connect (see [below for nested schema](#nestedatt--hosts))
 - `name` (String) ClickHouse user name
 
@@ -54,5 +55,3 @@ Optional:
 - `like` (List of String)
 - `name` (List of String)
 - `regexp` (List of String)
-
-
