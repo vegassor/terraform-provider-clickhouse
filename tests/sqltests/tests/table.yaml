@@ -1,0 +1,61 @@
+---
+name: Create database resource
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+
+      resource "clickhouse_table" "my_table" {
+        database = clickhouse_database.my_db.name
+        name     = "my_table"
+        engine   = "Memory"
+        comment  = "Some comment"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            default  = "default value"
+            comment  = "col1 comment"
+            not_null = true
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'mydb'
+        and name = 'table_name'
+    result: [['my_db', 'my_table', 'Memory', 'some comment']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'my_db'
+          and table = 'my_table'
+    result:
+      - ['my_db', 'my_table', 'col1', 'String', 1, 'DEFAULT', 'default value', 'col1 comment']
+      - ['my_db', 'my_table', 'col2', 'Float64', 2, '', '', '']
+
