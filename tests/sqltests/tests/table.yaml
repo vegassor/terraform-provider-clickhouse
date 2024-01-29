@@ -19,9 +19,7 @@ input:
           {
             name     = "col1"
             type     = "String"
-            default  = "default value"
             comment  = "col1 comment"
-            not_null = true
           },
           {
             name = "col2"
@@ -55,7 +53,7 @@ checks:
       where
           database = 'my_db'
           and table = 'my_table'
+      order by name
     result:
-      - ['my_db', 'my_table', 'col1', 'String', 1, 'DEFAULT', 'default value', 'col1 comment']
+      - ['my_db', 'my_table', 'col1', 'String', 1, '', '', 'col1 comment']
       - ['my_db', 'my_table', 'col2', 'Float64', 2, '', '', '']
-

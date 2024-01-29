@@ -18,12 +18,12 @@ ClickHouse user
 ### Required
 
 - `identified_with` (Attributes) (see [below for nested schema](#nestedatt--identified_with))
+- `name` (String) ClickHouse user name
 
 ### Optional
 
 - `default_database` (String)
 - `hosts` (Attributes) Hosts from which user is allowed to connect to ClickHouse. If unset, then ANY host. If set to empty map ({}) - NONE - user won't be able to connect (see [below for nested schema](#nestedatt--hosts))
-- `name` (String) ClickHouse user name
 
 <a id="nestedatt--identified_with"></a>
 ### Nested Schema for `identified_with`

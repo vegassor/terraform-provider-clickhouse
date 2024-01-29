@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/clickhouse_client"
 	"time"
@@ -111,6 +112,7 @@ func (p *ClickHouseProvider) Resources(ctx context.Context) []func() resource.Re
 	return []func() resource.Resource{
 		NewDatabaseResource,
 		NewUserResource,
+		NewTableResource,
 	}
 }
 
@@ -124,4 +126,21 @@ func New(version string) func() provider.Provider {
 			version: version,
 		}
 	}
+}
+
+func configureClickHouseClient(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) (*clickhouse_client.ClickHouseClient, error) {
+	if req.ProviderData == nil {
+		return nil, errors.New("the provider has not been configured")
+	}
+
+	client, ok := req.ProviderData.(*clickhouse_client.ClickHouseClient)
+
+	if !ok {
+		err := fmt.Sprintf("Expected *clickhouse_client.ClickHouseClient, got: %T. Please report this issue to the provider developers.", req.ProviderData)
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", err)
+
+		return nil, errors.New(err)
+	}
+
+	return client, nil
 }
