@@ -3,14 +3,8 @@ name: Create database resource
 input:
   - name: table.tf
     content: |
-      resource "clickhouse_database" "my_db" {
-        name    = "my_db"
-        engine  = "Atomic"
-        comment = "Example DB"
-      }
-
       resource "clickhouse_table" "my_table" {
-        database = clickhouse_database.my_db.name
+        database = "default"
         name     = "my_table"
         engine   = "Memory"
         comment  = "Some comment"
@@ -36,9 +30,9 @@ checks:
         comment
       from system.tables
       where
-        database = 'my_db'
+        database = 'default'
         and name = 'my_table'
-    result: [['my_db', 'my_table', 'Memory', 'Some comment']]
+    result: [['default', 'my_table', 'Memory', 'Some comment']]
   - query: >
       select
           database,
@@ -51,9 +45,63 @@ checks:
           comment
       from system.columns
       where
-          database = 'my_db'
+          database = 'default'
           and table = 'my_table'
-      order by name
+      order by position
     result:
-      - ['my_db', 'my_table', 'col1', 'String', 1, '', '', 'col1 comment']
-      - ['my_db', 'my_table', 'col2', 'Float64', 2, '', '', '']
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', 'col1 comment']
+      - ['default', 'my_table', 'col2', 'Float64', 2, '', '', '']
+
+---
+name: Update database columns
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+        comment  = "Another comment"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 updated comment"
+          },
+          {
+            name = "col2"
+            type = "Float32"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', 'Some comment']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', 'col1 updated comment']
+      - ['default', 'my_table', 'col2', 'Float32', 2, '', '', '']
