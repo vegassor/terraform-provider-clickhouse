@@ -36,9 +36,9 @@ checks:
         comment
       from system.tables
       where
-        database = 'mydb'
-        and name = 'table_name'
-    result: [['my_db', 'my_table', 'Memory', 'some comment']]
+        database = 'my_db'
+        and name = 'my_table'
+    result: [['my_db', 'my_table', 'Memory', 'Some comment']]
   - query: >
       select
           database,

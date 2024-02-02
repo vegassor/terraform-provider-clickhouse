@@ -6,7 +6,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/clickhouse_client"
 	"regexp"
 )
@@ -23,15 +25,18 @@ type TableResource struct {
 }
 
 type ColumnModel struct {
-	Name     string `tfsdk:"name"`
-	Type     string `tfsdk:"type"`
-	Nullable bool   `tfsdk:"nullable"`
+	Name string `tfsdk:"name"`
+	Type string `tfsdk:"type"`
+	//Nullable bool   `tfsdk:"nullable"`
+	Comment string `tfsdk:"comment"`
 }
 
 type TableResourceModel struct {
 	Database string        `tfsdk:"database"`
 	Name     string        `tfsdk:"name"`
+	Engine   string        `tfsdk:"engine"`
 	Columns  []ColumnModel `tfsdk:"columns"`
+	Comment  string        `tfsdk:"comment"`
 }
 
 func (r *TableResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -132,6 +137,8 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						},
 						"comment": schema.StringAttribute{
 							Optional: true,
+							Computed: true,
+							Default:  stringdefault.StaticString(""),
 						},
 					},
 				},
@@ -150,6 +157,38 @@ func (r *TableResource) Configure(ctx context.Context, req resource.ConfigureReq
 }
 
 func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var tableModel TableResourceModel
+	tflog.Info(ctx, "ABOBUS", map[string]interface{}{"a": req.Plan.Raw})
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &tableModel)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var table clickhouse_client.ClickHouseTable
+
+	table.Name = tableModel.Name
+	table.Engine = tableModel.Engine
+	table.Comment = tableModel.Comment
+	table.Columns = make([]clickhouse_client.ClickHouseColumn, 0, len(tableModel.Columns))
+	for _, col := range tableModel.Columns {
+		table.Columns = append(table.Columns, clickhouse_client.ClickHouseColumn{
+			Name:    col.Name,
+			Type:    col.Type,
+			Comment: col.Comment,
+		})
+	}
+
+	err := r.client.CreateTable(ctx, tableModel.Database, table)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot create user",
+			"Create user query failed: "+err.Error(),
+		)
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &tableModel)...)
 }
 
 func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {

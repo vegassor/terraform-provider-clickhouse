@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 from .types import TfChException
@@ -19,10 +20,11 @@ class Terraform:
 
     def apply(self):
         result = subprocess.run(
-            ['terraform', 'apply', '-auto-approve'],
+            ['terraform', 'apply', '-auto-approve', '-no-color'],
             cwd=self.cwd,
             capture_output=True,
             text=True,
+            env={**os.environ, 'TF_LOG': 'debug'}
         )
         if result.returncode != 0:
             raise TfChException('terraform apply failed', result)

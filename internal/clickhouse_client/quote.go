@@ -29,3 +29,15 @@ func QuoteValue(v string) string {
 
 	return `'` + v + `'`
 }
+
+// QuoteWithTicks quotes ClickHouse identifiers with ticks (` `) in order to try to prevent SQL injection.
+func QuoteWithTicks(v string) string {
+	end := strings.IndexRune(v, 0)
+	if end > -1 {
+		v = v[:end]
+	}
+	v = strings.ReplaceAll(v, `\`, `\\`)
+	v = strings.ReplaceAll(v, `'`, `\'`)
+
+	return "`" + v + "`"
+}
