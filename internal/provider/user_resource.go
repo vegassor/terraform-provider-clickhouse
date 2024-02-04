@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/vegassor/terraform-provider-clickhouse/internal/clickhouse_client"
+	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"net"
 	"regexp"
 )
@@ -27,7 +27,7 @@ func NewUserResource() resource.Resource {
 
 // UserResource defines the resource implementation.
 type UserResource struct {
-	client *clickhouse_client.ClickHouseClient
+	client *chclient.ClickHouseClient
 }
 
 type sha256hash struct {
@@ -55,24 +55,24 @@ type UserResourceModel struct {
 	DefaultDatabase types.String      `tfsdk:"default_database"`
 }
 
-func (user UserResourceModel) ToClickHouseClientUser() (clickhouse_client.ClickHouseUser, error) {
-	var auth clickhouse_client.ClickHouseUserAuthType
+func (user UserResourceModel) ToClickHouseClientUser() (chclient.ClickHouseUser, error) {
+	var auth chclient.ClickHouseUserAuthType
 	if user.IdentifiedWith.Sha256Hash != nil {
-		auth = clickhouse_client.Sha256HashAuth{
+		auth = chclient.Sha256HashAuth{
 			Hash: user.IdentifiedWith.Sha256Hash.Hash,
 			Salt: user.IdentifiedWith.Sha256Hash.Salt,
 		}
 	} else if user.IdentifiedWith.Sha256Password != nil {
-		auth = clickhouse_client.Sha256PasswordAuth{
+		auth = chclient.Sha256PasswordAuth{
 			Password: *user.IdentifiedWith.Sha256Password,
 		}
 	} else {
-		return clickhouse_client.ClickHouseUser{}, errors.New(
+		return chclient.ClickHouseUser{}, errors.New(
 			"either IdentifiedWith.Sha256Hash or IdentifiedWith.Sha256Password should be non-nil",
 		)
 	}
 
-	var hosts *clickhouse_client.ClickHouseUserHosts
+	var hosts *chclient.ClickHouseUserHosts
 
 	if user.Hosts != nil {
 		var ipHosts []net.IPNet
@@ -81,12 +81,12 @@ func (user UserResourceModel) ToClickHouseClientUser() (clickhouse_client.ClickH
 			_, ipNet, err := net.ParseCIDR(cidr)
 
 			if err != nil {
-				return clickhouse_client.ClickHouseUser{}, err
+				return chclient.ClickHouseUser{}, err
 			}
 			ipHosts = append(ipHosts, *ipNet)
 		}
 
-		hosts = &clickhouse_client.ClickHouseUserHosts{
+		hosts = &chclient.ClickHouseUserHosts{
 			Ip:     ipHosts,
 			Name:   user.Hosts.Name,
 			Regexp: user.Hosts.Regexp,
@@ -94,11 +94,11 @@ func (user UserResourceModel) ToClickHouseClientUser() (clickhouse_client.ClickH
 		}
 	}
 
-	return clickhouse_client.ClickHouseUser{
+	return chclient.ClickHouseUser{
 		Name:            user.Name,
 		Auth:            auth,
 		Hosts:           hosts,
-		DefaultDatabase: clickhouse_client.DefaultDatabase(user.DefaultDatabase.ValueString()),
+		DefaultDatabase: chclient.DefaultDatabase(user.DefaultDatabase.ValueString()),
 	}, nil
 }
 
@@ -203,7 +203,7 @@ func (r *UserResource) Configure(ctx context.Context, req resource.ConfigureRequ
 		return
 	}
 
-	client, ok := req.ProviderData.(*clickhouse_client.ClickHouseClient)
+	client, ok := req.ProviderData.(*chclient.ClickHouseClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(

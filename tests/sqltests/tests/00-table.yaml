@@ -61,7 +61,7 @@ input:
         database = "default"
         name     = "my_table"
         engine   = "Memory"
-        comment  = "Another comment"
+        comment  = "Some comment"
 
         columns = [
           {

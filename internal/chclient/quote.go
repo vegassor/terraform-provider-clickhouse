@@ -1,6 +1,6 @@
 // Inspired by: https://github.com/go-rel/postgres/blob/main/quote.go
 
-package clickhouse_client
+package chclient
 
 import (
 	"strings"
