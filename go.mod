@@ -1,18 +1,18 @@
 module github.com/vegassor/terraform-provider-clickhouse
 
-go 1.20
+go 1.21
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.18.0
+	github.com/emirpasic/gods/v2 v2.0.0-alpha
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/terraform-plugin-docs v0.18.0
 	github.com/hashicorp/terraform-plugin-framework v1.5.0
+	github.com/hashicorp/terraform-plugin-framework-validators v0.12.0
 	github.com/hashicorp/terraform-plugin-go v0.21.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-testing v1.6.0
 )
-
-require github.com/hashicorp/terraform-plugin-framework-validators v0.12.0
 
 require (
 	github.com/ClickHouse/ch-go v0.58.2 // indirect

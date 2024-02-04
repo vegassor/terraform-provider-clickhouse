@@ -28,7 +28,7 @@ func NewClickHouseClient(connOpts *clickhouse.Options) (*ClickHouseClient, error
 }
 
 type ClickHouseClientError interface {
-	query() string
+	error()
 }
 
 type NotFoundError struct {
@@ -37,13 +37,24 @@ type NotFoundError struct {
 	Query  string
 }
 
+type NotSupportedError struct {
+	Operation string
+	Detail    string
+}
+
 func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("could not find %s %s: query: %s", e.Entity, e.Name, e.Query)
 }
 
-func (e *NotFoundError) query() string {
-	return e.Query
+func (e *NotSupportedError) Error() string {
+	return fmt.Sprintf("%s is not supported: %s", e.Operation, e.Detail)
 }
+
+func (e *NotFoundError) error()     {}
+func (e *NotSupportedError) error() {}
 
 var _ error = &NotFoundError{}
 var _ ClickHouseClientError = &NotFoundError{}
+
+var _ error = &NotSupportedError{}
+var _ ClickHouseClientError = &NotSupportedError{}
