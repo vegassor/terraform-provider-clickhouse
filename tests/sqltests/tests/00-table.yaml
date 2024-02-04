@@ -1,5 +1,5 @@
 ---
-name: Create database resource
+name: Create table resource
 input:
   - name: table.tf
     content: |
@@ -53,7 +53,7 @@ checks:
       - ['default', 'my_table', 'col2', 'Float64', 2, '', '', '']
 
 ---
-name: Update database columns
+name: Update table columns
 input:
   - name: table.tf
     content: |
@@ -106,7 +106,7 @@ checks:
       - ['default', 'my_table', 'col1', 'String', 1, '', '', 'col1 updated comment']
       - ['default', 'my_table', 'col2', 'Float32', 2, '', '', '']
 ---
-name: Update database columns order
+name: Update table columns order
 input:
   - name: table.tf
     content: |
@@ -158,3 +158,124 @@ checks:
     result:
       - ['default', 'my_table', 'col2', 'Float32', 1, '', '', '']
       - ['default', 'my_table', 'col1', 'String', 2, '', '', 'col1 updated updated comment']
+---
+name: Add new column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+        comment  = "Some comment"
+
+        columns = [
+          {
+            name = "col2"
+            type = "Float32"
+          },
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 updated updated comment"
+          },
+          {
+            name = "col3"
+            type = "Float32"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', 'Some comment']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col2', 'Float32', 1, '', '', '']
+      - ['default', 'my_table', 'col1', 'String', 2, '', '', 'col1 updated updated comment']
+      - ['default', 'my_table', 'col3', 'Float32', 3, '', '', '']
+---
+name: Add new column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+        comment  = "Some comment"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 updated updated comment"
+          },
+          {
+            name = "col2"
+            type = "Float32"
+          },
+          {
+            name = "col2point5"
+            type = "Float32"
+          },
+          {
+            name = "col3"
+            type = "Float32"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', 'Some comment']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', 'col1 updated updated comment']
+      - ['default', 'my_table', 'col2', 'Float32', 2, '', '', '']
+      - ['default', 'my_table', 'col2point5', 'Float32', 3, '', '', '']
+      - ['default', 'my_table', 'col3', 'Float32', 4, '', '', '']

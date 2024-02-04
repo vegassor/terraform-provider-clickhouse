@@ -155,7 +155,7 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 	}
 
 	desiredColsSet := hashset.New[string](desiredTable.Columns.Names()...)
-	currentColsSet := hashset.New[string](desiredTable.Columns.Names()...)
+	currentColsSet := hashset.New[string](currentTable.Columns.Names()...)
 	oldCols := currentColsSet.Intersection(desiredColsSet)
 	newCols := desiredColsSet.Difference(currentColsSet)
 	desiredColsMap := make(map[string]struct {
@@ -183,7 +183,7 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 
 	for _, colName := range newCols.Values() {
 		query := fmt.Sprintf(
-			`ALTER TABLE %s.%s ADD COLUMN %s TYPE %s COMMENT %s`,
+			`ALTER TABLE %s.%s ADD COLUMN %s %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
 			QuoteID(currentTableName),
 			QuoteID(colName),
@@ -198,6 +198,10 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 	}
 
 	for _, col := range desiredTable.Columns {
+		if newCols.Contains(col.Name) {
+			continue
+		}
+
 		query := fmt.Sprintf(`ALTER TABLE %s.%s ALTER COLUMN %s TYPE %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
 			QuoteID(desiredTable.Name),
@@ -214,9 +218,11 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 
 	for i := range desiredTable.Columns {
 		desiredCol := desiredTable.Columns[i]
-		currentCol := currentTable.Columns[i]
-		if desiredCol.Name == currentCol.Name {
-			continue
+		if i < len(currentTable.Columns) {
+			currentCol := currentTable.Columns[i]
+			if desiredCol.Name == currentCol.Name {
+				continue
+			}
 		}
 
 		desiredIdx := i
