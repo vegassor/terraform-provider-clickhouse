@@ -1,4 +1,7 @@
 import json
+import os
+import random
+import string
 import subprocess
 import time
 from functools import cached_property
@@ -7,6 +10,10 @@ from uuid import UUID
 import clickhouse_connect
 
 from .types import TestCheck, TfChException
+
+
+def generate_random_string(length: int) -> str:
+    return ''.join(random.choice(string.ascii_letters) for _ in range(length))
 
 
 class UUIDEncoder(json.JSONEncoder):
@@ -19,6 +26,12 @@ class UUIDEncoder(json.JSONEncoder):
 class ClickHouseTestInstallation:
     def __init__(self, cwd):
         self.cwd = cwd
+        self._env = {
+            **os.environ,
+            'CLICKHOUSE_LOCAL_PORT_HTTP': '18123',
+            'CLICKHOUSE_LOCAL_PORT_NATIVE': '19000',
+            'COMPOSE_PROJECT_NAME': f'tfch-{generate_random_string(8)}',
+        }
 
     def __enter__(self):
         self.prepare()
@@ -35,6 +48,7 @@ class ClickHouseTestInstallation:
             cwd=self.cwd,
             capture_output=True,
             text=True,
+            env=self._env,
         )
         if result.returncode != 0:
             raise TfChException('ClickHouse initialization failed', result)
@@ -56,6 +70,7 @@ class ClickHouseTestInstallation:
             cwd=self.cwd,
             capture_output=True,
             text=True,
+            env=self._env,
         )
         if result.returncode != 0:
             raise TfChException('ClickHouse initialization failed', result)
@@ -64,7 +79,7 @@ class ClickHouseTestInstallation:
     def _client(self):
         return clickhouse_connect.get_client(
             host='localhost',
-            port=8123,
+            port=18123,
             username='default',
             password='default',
         )

@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
 )
@@ -168,7 +167,6 @@ func (r *TableResource) Configure(ctx context.Context, req resource.ConfigureReq
 
 func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var tableModel TableResourceModel
-	tflog.Info(ctx, "ABOBUS", map[string]interface{}{"a": req.Plan.Raw})
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &tableModel)...)
 
 	if resp.Diagnostics.HasError() {
