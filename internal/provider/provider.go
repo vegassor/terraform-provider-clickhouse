@@ -128,7 +128,7 @@ func New(version string) func() provider.Provider {
 	}
 }
 
-func configureClickHouseClient(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) (*chclient.ClickHouseClient, error) {
+func configureClickHouseClient(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) (*chclient.ClickHouseClient, error) {
 	if req.ProviderData == nil {
 		return nil, errors.New("the provider has not been configured")
 	}
