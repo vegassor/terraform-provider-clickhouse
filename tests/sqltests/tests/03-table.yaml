@@ -281,6 +281,70 @@ checks:
       - ['default', 'my_table', 'col3', 'Float32', 4, '', '', '']
 
 ---
+name: Add new column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table_2"
+        engine   = "Memory"
+        comment  = "Some comment"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 updated updated comment"
+          },
+          {
+            name = "col2"
+            type = "Float32"
+          },
+          {
+            name = "col2point5"
+            type = "Float32"
+          },
+          {
+            name = "col3"
+            type = "Float32"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and (name = 'my_table' or name = 'my_table_2')
+    result: [['default', 'my_table_2', 'Memory', 'Some comment']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table_2'
+      order by position
+    result:
+      - ['default', 'my_table_2', 'col1', 'String', 1, '', '', 'col1 updated updated comment']
+      - ['default', 'my_table_2', 'col2', 'Float32', 2, '', '', '']
+      - ['default', 'my_table_2', 'col2point5', 'Float32', 3, '', '', '']
+      - ['default', 'my_table_2', 'col3', 'Float32', 4, '', '', '']
+
+---
 name: Delete table
 input:
   - name: table.tf

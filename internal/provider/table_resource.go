@@ -173,20 +173,7 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	var table chclient.ClickHouseTable
-
-	table.Database = tableModel.Database
-	table.Name = tableModel.Name
-	table.Engine = tableModel.Engine
-	table.Comment = tableModel.Comment
-	table.Columns = make([]chclient.ClickHouseColumn, 0, len(tableModel.Columns))
-	for _, col := range tableModel.Columns {
-		table.Columns = append(table.Columns, chclient.ClickHouseColumn{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
-		})
-	}
+	table := toChClientTable(tableModel)
 
 	err := r.client.CreateTable(ctx, table)
 	if err != nil {
@@ -197,11 +184,11 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &tableModel)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, tableModel)...)
 }
 
 func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var table *TableResourceModel
+	var table TableResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &table)...)
 
 	if resp.Diagnostics.HasError() {
@@ -217,24 +204,13 @@ func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	table.Name = receivedTable.Name
-	table.Engine = receivedTable.Engine
-	table.Comment = receivedTable.Comment
-	table.Database = receivedTable.Database
-	table.Columns = make([]ColumnModel, 0, len(receivedTable.Columns))
-	for _, col := range receivedTable.Columns {
-		table.Columns = append(table.Columns, ColumnModel{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
-		})
-	}
-	resp.Diagnostics.Append(resp.State.Set(ctx, &table)...)
+	table = fromChClientTable(receivedTable)
+	resp.Diagnostics.Append(resp.State.Set(ctx, table)...)
 }
 
 func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var stateTable *TableResourceModel
-	var planTable *TableResourceModel
+	var stateTable TableResourceModel
+	var planTable TableResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &stateTable)...)
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &planTable)...)
 
@@ -251,23 +227,7 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	cols := make([]chclient.ClickHouseColumn, 0, len(planTable.Columns))
-	for _, col := range planTable.Columns {
-		cols = append(cols, chclient.ClickHouseColumn{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
-		})
-	}
-
-	table := chclient.ClickHouseTable{
-		Database: planTable.Database,
-		Name:     planTable.Name,
-		Engine:   planTable.Engine,
-		Comment:  planTable.Comment,
-		Columns:  cols,
-	}
-
+	table := toChClientTable(planTable)
 	err := r.client.AlterTable(ctx, stateTable.Name, table)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -277,17 +237,17 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &planTable)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, planTable)...)
 }
 
 func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var model *TableResourceModel
+	var model TableResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	table := toChClientTable(*model)
+	table := toChClientTable(model)
 
 	err := r.client.DropTable(ctx, table)
 	if err != nil {

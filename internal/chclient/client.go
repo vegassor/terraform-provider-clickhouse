@@ -42,19 +42,31 @@ type NotSupportedError struct {
 	Detail    string
 }
 
+type TableIsNotEmptyError struct {
+	Table ClickHouseTable
+}
+
 func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("could not find %s %s: query: %s", e.Entity, e.Name, e.Query)
+}
+
+func (e *TableIsNotEmptyError) Error() string {
+	return fmt.Sprintf("cannot drop table %s.%s: table is not empty", e.Table.Database, e.Table.Name)
 }
 
 func (e *NotSupportedError) Error() string {
 	return fmt.Sprintf("%s is not supported: %s", e.Operation, e.Detail)
 }
 
-func (e *NotFoundError) error()     {}
-func (e *NotSupportedError) error() {}
+func (e *NotFoundError) error()        {}
+func (e *NotSupportedError) error()    {}
+func (e *TableIsNotEmptyError) error() {}
 
 var _ error = &NotFoundError{}
 var _ ClickHouseClientError = &NotFoundError{}
 
 var _ error = &NotSupportedError{}
 var _ ClickHouseClientError = &NotSupportedError{}
+
+var _ error = &TableIsNotEmptyError{}
+var _ ClickHouseClientError = &TableIsNotEmptyError{}

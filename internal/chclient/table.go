@@ -141,17 +141,24 @@ order by "position"`,
 }
 
 func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName string, desiredTable ClickHouseTable) error {
-	if currentTableName != desiredTable.Name {
-		return fmt.Errorf(
-			"table name mismatch: %s != %s. Renaming tables is not yet supported",
-			desiredTable.Name,
-			currentTableName,
-		)
-	}
-
 	currentTable, err := client.GetTable(ctx, desiredTable.Database, currentTableName)
 	if err != nil {
 		return err
+	}
+
+	if currentTable.Name != desiredTable.Name {
+		query := fmt.Sprintf(
+			"RENAME TABLE %s.%s TO %s.%s",
+			QuoteID(desiredTable.Database),
+			QuoteID(currentTable.Name),
+			QuoteID(desiredTable.Database),
+			QuoteID(desiredTable.Name),
+		)
+		tflog.Info(ctx, "Renaming a table", dict{"query": query})
+		err := client.Conn.Exec(ctx, query)
+		if err != nil {
+			return err
+		}
 	}
 
 	desiredColsSet := hashset.New[string](desiredTable.Columns.Names()...)
@@ -185,7 +192,7 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 		query := fmt.Sprintf(
 			`ALTER TABLE %s.%s ADD COLUMN %s %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
-			QuoteID(currentTableName),
+			QuoteID(desiredTable.Name),
 			QuoteID(colName),
 			QuoteID(desiredColsMap[colName].Type),
 			QuoteValue(desiredColsMap[colName].Comment),
@@ -259,6 +266,20 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 
 func (client *ClickHouseClient) DropTable(ctx context.Context, table ClickHouseTable) error {
 	query := fmt.Sprintf(
+		"select 1 from %s.%s limit 1",
+		QuoteID(table.Database),
+		QuoteID(table.Name),
+	)
+	tflog.Info(ctx, "Checking if table is empty", dict{"query": query})
+	rows, err := client.Conn.Query(ctx, query)
+	if err != nil {
+		return err
+	}
+	if rows.Next() {
+		return &TableIsNotEmptyError{table}
+	}
+
+	query = fmt.Sprintf(
 		`DROP TABLE %s.%s`,
 		QuoteID(table.Database),
 		QuoteID(table.Name),
