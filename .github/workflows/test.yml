@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Build
+    name: Build provider
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -32,6 +32,7 @@ jobs:
           version: latest
 
   generate:
+    name: Generate docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
