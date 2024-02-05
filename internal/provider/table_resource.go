@@ -281,7 +281,61 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 }
 
 func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var model *TableResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	table := toChClientTable(*model)
+
+	err := r.client.DropTable(ctx, table)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot delete table",
+			err.Error(),
+		)
+		return
+	}
 }
 
 func (r *TableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+}
+
+func toChClientTable(table TableResourceModel) chclient.ClickHouseTable {
+	cols := make([]chclient.ClickHouseColumn, 0, len(table.Columns))
+	for _, col := range table.Columns {
+		cols = append(cols, chclient.ClickHouseColumn{
+			Name:    col.Name,
+			Type:    col.Type,
+			Comment: col.Comment,
+		})
+	}
+
+	return chclient.ClickHouseTable{
+		Database: table.Database,
+		Name:     table.Name,
+		Engine:   table.Engine,
+		Comment:  table.Comment,
+		Columns:  cols,
+	}
+}
+
+func fromChClientTable(table chclient.ClickHouseTable) TableResourceModel {
+	cols := make([]ColumnModel, 0, len(table.Columns))
+	for _, col := range table.Columns {
+		cols = append(cols, ColumnModel{
+			Name:    col.Name,
+			Type:    col.Type,
+			Comment: col.Comment,
+		})
+	}
+
+	return TableResourceModel{
+		Database: table.Database,
+		Name:     table.Name,
+		Engine:   table.Engine,
+		Comment:  table.Comment,
+		Columns:  cols,
+	}
 }

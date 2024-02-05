@@ -256,3 +256,13 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 	}
 	return nil
 }
+
+func (client *ClickHouseClient) DropTable(ctx context.Context, table ClickHouseTable) error {
+	query := fmt.Sprintf(
+		`DROP TABLE %s.%s`,
+		QuoteID(table.Database),
+		QuoteID(table.Name),
+	)
+	tflog.Info(ctx, "Dropping a table", dict{"query": query})
+	return client.Conn.Exec(ctx, query)
+}

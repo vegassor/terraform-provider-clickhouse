@@ -12,9 +12,9 @@ resource "clickhouse_table" "my_table" {
 
   columns = [
     {
-      name     = "col1"
-      type     = "String"
-      comment  = "col1 comment"
+      name    = "col1"
+      type    = "String"
+      comment = "col1 comment"
     },
     {
       name = "col2"

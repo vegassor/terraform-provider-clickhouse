@@ -279,3 +279,37 @@ checks:
       - ['default', 'my_table', 'col2', 'Float32', 2, '', '', '']
       - ['default', 'my_table', 'col2point5', 'Float32', 3, '', '', '']
       - ['default', 'my_table', 'col3', 'Float32', 4, '', '', '']
+
+---
+name: Delete table
+input:
+  - name: table.tf
+    content: ""
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: []
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result: []
