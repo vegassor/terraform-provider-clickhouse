@@ -2,8 +2,9 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/vegassor/terraform-provider-clickhouse/internal/clickhouse_client"
+	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -79,7 +80,7 @@ func (p *ClickHouseProvider) Configure(ctx context.Context, req provider.Configu
 		addr = fmt.Sprintf("%s:%d", data.Host.ValueString(), data.Port.ValueInt64())
 	}
 
-	client, err := clickhouse_client.NewClickHouseClient(&clickhouse.Options{
+	client, err := chclient.NewClickHouseClient(&clickhouse.Options{
 		Protocol: clickhouse.Native,
 		Addr:     []string{addr},
 		Auth: clickhouse.Auth{
@@ -111,6 +112,7 @@ func (p *ClickHouseProvider) Resources(ctx context.Context) []func() resource.Re
 	return []func() resource.Resource{
 		NewDatabaseResource,
 		NewUserResource,
+		NewTableResource,
 	}
 }
 
@@ -124,4 +126,21 @@ func New(version string) func() provider.Provider {
 			version: version,
 		}
 	}
+}
+
+func configureClickHouseClient(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) (*chclient.ClickHouseClient, error) {
+	if req.ProviderData == nil {
+		return nil, errors.New("the provider has not been configured")
+	}
+
+	client, ok := req.ProviderData.(*chclient.ClickHouseClient)
+
+	if !ok {
+		err := fmt.Sprintf("Expected *chclient.ClickHouseClient, got: %T. Please report this issue to the provider developers.", req.ProviderData)
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", err)
+
+		return nil, errors.New(err)
+	}
+
+	return client, nil
 }

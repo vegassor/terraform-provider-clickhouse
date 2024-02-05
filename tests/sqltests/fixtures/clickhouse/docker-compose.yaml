@@ -5,8 +5,8 @@ services:
     image: clickhouse/clickhouse-server:23.12
     hostname: clickhouse
     ports:
-      - "8123:8123"
-      - "9000:9000"
+      - "${CLICKHOUSE_LOCAL_PORT_HTTP:-8123}:8123"
+      - "${CLICKHOUSE_LOCAL_PORT_NATIVE:-9000}:9000"
     volumes:
       - "./configs/config.xml:/etc/clickhouse-server/config.xml:ro"
       - "./configs/users.xml:/etc/clickhouse-server/users.xml:ro"

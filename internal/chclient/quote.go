@@ -1,6 +1,6 @@
 // Inspired by: https://github.com/go-rel/postgres/blob/main/quote.go
 
-package clickhouse_client
+package chclient
 
 import (
 	"strings"
@@ -28,4 +28,16 @@ func QuoteValue(v string) string {
 	v = strings.ReplaceAll(v, `'`, `\'`)
 
 	return `'` + v + `'`
+}
+
+// QuoteWithTicks quotes ClickHouse identifiers with ticks (` `) in order to try to prevent SQL injection.
+func QuoteWithTicks(v string) string {
+	end := strings.IndexRune(v, 0)
+	if end > -1 {
+		v = v[:end]
+	}
+	v = strings.ReplaceAll(v, `\`, `\\`)
+	v = strings.ReplaceAll(v, `'`, `\'`)
+
+	return "`" + v + "`"
 }

@@ -26,8 +26,8 @@ test:
 testacc:
 	TF_ACC=1 go test -count=1 -parallel=4 -timeout 10m -v ./...
 
-testsql:
-	cd tests && pytest -v -s
+testsql: build
+	cd tests && pytest -v -s --color=yes
 
 chup:
 	cd ${CH_DOCKER_DIR} && docker-compose up -d

@@ -3,8 +3,10 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"regexp"
 )
 
 type IdentifiedWithValidator struct{}
@@ -31,3 +33,5 @@ func (v IdentifiedWithValidator) Description(context.Context) string {
 func (v IdentifiedWithValidator) MarkdownDescription(context.Context) string {
 	return "ABOBA MD"
 }
+
+var ClickHouseIdentifierValidator = stringvalidator.RegexMatches(regexp.MustCompile("^[a-zA-Z0-9_]+$"), "Should contain only latin letters, digits and _")

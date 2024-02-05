@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/vegassor/terraform-provider-clickhouse/internal/clickhouse_client"
+	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -28,7 +28,7 @@ func NewDatabaseResource() resource.Resource {
 
 // DatabaseResource defines the resource implementation.
 type DatabaseResource struct {
-	client *clickhouse_client.ClickHouseClient
+	client *chclient.ClickHouseClient
 }
 
 // DatabaseResourceModel describes the resource data model.
@@ -83,7 +83,7 @@ func (r *DatabaseResource) Configure(ctx context.Context, req resource.Configure
 		return
 	}
 
-	client, ok := req.ProviderData.(*clickhouse_client.ClickHouseClient)
+	client, ok := req.ProviderData.(*chclient.ClickHouseClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(
@@ -106,9 +106,9 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 
 	err := r.client.CreateDatabase(
 		ctx,
-		clickhouse_client.ClickHouseDatabase{
+		chclient.ClickHouseDatabase{
 			Name:    data.Name.ValueString(),
-			Engine:  clickhouse_client.DatabaseEngineFromString(data.Engine.ValueString()),
+			Engine:  chclient.DatabaseEngineFromString(data.Engine.ValueString()),
 			Comment: data.Comment.ValueString(),
 		},
 	)

@@ -10,5 +10,5 @@ provider "clickhouse" {
   username = "default"
   password = "default"
   host     = "localhost"
-  port     = 9000
+  port     = 19000
 }

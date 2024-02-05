@@ -1,4 +1,4 @@
-package clickhouse_client
+package chclient
 
 import (
 	"context"
@@ -97,7 +97,7 @@ func (client *ClickHouseClient) CreateUser(ctx context.Context, user ClickHouseU
 		user.DefaultDatabase.String(),
 	)
 
-	tflog.Info(ctx, "Creating a user", map[string]interface{}{"query": query})
+	tflog.Info(ctx, "Creating a user", dict{"query": query})
 
 	return client.Conn.Exec(ctx, query)
 }

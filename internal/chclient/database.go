@@ -1,4 +1,4 @@
-package clickhouse_client
+package chclient
 
 import (
 	"context"
