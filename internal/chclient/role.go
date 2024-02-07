@@ -31,9 +31,11 @@ func (client *ClickHouseClient) GetRole(ctx context.Context, roleName string) (s
 }
 
 func (client *ClickHouseClient) RenameRole(ctx context.Context, from, to string) error {
-	return nil
+	query := fmt.Sprintf("ALTER ROLE %s RENAME TO %s", QuoteID(from), QuoteID(to))
+	return client.Conn.Exec(ctx, query)
 }
 
-func (client *ClickHouseClient) DropRole(ctx context.Context, name string) error {
-	return nil
+func (client *ClickHouseClient) DropRole(ctx context.Context, roleName string) error {
+	query := fmt.Sprintf("DROP ROLE %s", QuoteID(roleName))
+	return client.Conn.Exec(ctx, query)
 }

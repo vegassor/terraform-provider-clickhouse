@@ -20,6 +20,8 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
   - [ ] Complex table resources
     - [ ] MergeTree family
     - [ ] RabbitMQ table
+  - [ ] Implement import
+- [ ] Add datasources
 - [ ] Tests
   - [ ] Acceptance tests
   - [ ] Test more ClickHouse versions

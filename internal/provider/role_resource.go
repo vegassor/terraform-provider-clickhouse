@@ -90,9 +90,42 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 }
 
 func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var stateModel RoleResourceModel
+	var planModel RoleResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateModel)...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planModel)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.RenameRole(ctx, stateModel.Name, planModel.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot rename role",
+			err.Error(),
+		)
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, planModel)...)
 }
 
 func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var model RoleResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.DropRole(ctx, model.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot delete table",
+			err.Error(),
+		)
+		return
+	}
 }
 
 func (r *RoleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
