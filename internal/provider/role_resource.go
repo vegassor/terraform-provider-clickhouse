@@ -2,12 +2,10 @@ package provider
 
 import (
 	"context"
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
-	"regexp"
 )
 
 var _ resource.Resource = &RoleResource{}
@@ -34,14 +32,9 @@ func (r *RoleResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 		MarkdownDescription: "ClickHouse user",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				MarkdownDescription: "ClickHouse table name",
+				MarkdownDescription: "Role name in ClickHouse",
 				Required:            true,
-				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile("[a-z0-9_]+"),
-						"User name should contain only lower case latin letters, digits and _",
-					),
-				},
+				Validators:          []validator.String{ClickHouseIdentifierValidator},
 			},
 		},
 	}
@@ -56,9 +49,44 @@ func (r *RoleResource) Configure(ctx context.Context, req resource.ConfigureRequ
 }
 
 func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var model RoleResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.CreateRole(ctx, model.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot create role",
+			"Create role query failed: "+err.Error(),
+		)
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
 
 func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var model RoleResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	receivedRoleName, err := r.client.GetRole(ctx, model.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot find role",
+			err.Error(),
+		)
+		return
+	}
+
+	model = RoleResourceModel{Name: receivedRoleName}
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
 
 func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
