@@ -1,7 +1,7 @@
 ---
 name: Create database resource
 input:
-  - name: db.tf
+  - name: user.tf
     content: |
       resource "clickhouse_user" "user_sha256_hash_and_salt" {
         name = "user1"

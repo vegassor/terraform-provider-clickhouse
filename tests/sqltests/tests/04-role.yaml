@@ -1,0 +1,38 @@
+---
+name: Check there are no roles
+input:
+  - name: file.tf
+    content: ""
+checks:
+  - query: select name from system.roles
+    result: []
+---
+name: Create a role
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_role" "my_role" {
+        name = "testovich"
+      }
+checks:
+  - query: select name from system.roles
+    result: [[testovich]]
+---
+name: Change role
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_role" "my_role" {
+        name = "testovich_1"
+      }
+checks:
+  - query: select name from system.roles
+    result: [[testovich_1]]
+---
+name: Delete role
+input:
+  - name: file.tf
+    content: ""
+checks:
+  - query: select name from system.roles
+    result: []

@@ -47,7 +47,7 @@ func (r *TableResource) Metadata(ctx context.Context, req resource.MetadataReque
 
 func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "ClickHouse user",
+		MarkdownDescription: "ClickHouse table",
 		Attributes: map[string]schema.Attribute{
 			"database": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse database name",
@@ -61,7 +61,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(
 						regexp.MustCompile("[a-z0-9_]+"),
-						"User name should contain only lower case latin letters, digits and _",
+						"Table name should contain only lower case latin letters, digits and _",
 					),
 				},
 			},
