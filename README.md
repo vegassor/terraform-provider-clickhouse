@@ -11,7 +11,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
 - [ ] Provider
   - [ ] Add HTTP (port 8123) configuration support
 - [ ] Resources
-  - [ ] Role resource
+  - [x] Role resource
   - [ ] Grant permission resource
   - [ ] Grant role resource
   - [ ] Dictionary resource
