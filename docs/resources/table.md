@@ -3,12 +3,12 @@
 page_title: "clickhouse_table Resource - terraform-provider-clickhouse"
 subcategory: ""
 description: |-
-  ClickHouse user
+  ClickHouse table
 ---
 
 # clickhouse_table (Resource)
 
-ClickHouse user
+ClickHouse table
 
 ## Example Usage
 
