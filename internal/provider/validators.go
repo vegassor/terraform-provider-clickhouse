@@ -34,4 +34,8 @@ func (v IdentifiedWithValidator) MarkdownDescription(context.Context) string {
 	return "ABOBA MD"
 }
 
-var ClickHouseIdentifierValidator = stringvalidator.RegexMatches(regexp.MustCompile("^[a-zA-Z0-9_]+$"), "Should contain only latin letters, digits and _")
+var ClickHouseIdentifierValidator = stringvalidator.RegexMatches(
+	regexp.MustCompile("^[a-zA-Z0-9_]+$"),
+	"Should contain only latin letters, digits and _."+
+		" Should not be empty.",
+)

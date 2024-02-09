@@ -121,7 +121,7 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	tflog.Debug(ctx, "Created a clickhouse_database resource", map[string]interface{}{"name": data.Name.ValueString()})
+	tflog.Debug(ctx, "Created a clickhouse_database resource", dict{"name": data.Name.ValueString()})
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

@@ -114,6 +114,7 @@ func (p *ClickHouseProvider) Resources(ctx context.Context) []func() resource.Re
 		NewUserResource,
 		NewTableResource,
 		NewRoleResource,
+		NewRoleGrantResource,
 	}
 }
 
@@ -145,3 +146,5 @@ func configureClickHouseClient(_ context.Context, req resource.ConfigureRequest,
 
 	return client, nil
 }
+
+type dict map[string]interface{}
