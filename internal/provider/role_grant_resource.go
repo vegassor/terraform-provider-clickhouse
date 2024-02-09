@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -142,8 +143,9 @@ func (r *RoleGrantResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	if err.(*chclient.NotFoundError) != nil {
-		tflog.Info(ctx, "Role grant already deleted", dict{})
+	var notFoundError *chclient.NotFoundError
+	if errors.As(err, &notFoundError) {
+		tflog.Info(ctx, "Role grant already deleted", dict{"err": err.Error()})
 		return
 	}
 
