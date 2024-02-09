@@ -15,8 +15,8 @@ input:
       }
 
       resource "clickhouse_role_grant" "my_role_grant" {
-        role_name = clickhouse_role.my_role.name
-        grantee   = clickhouse_user.my_user.name
+        role    = clickhouse_role.my_role.name
+        grantee = clickhouse_user.my_user.name
       }
 checks:
   - query: select user_name, role_name, granted_role_name, with_admin_option from system.role_grants
