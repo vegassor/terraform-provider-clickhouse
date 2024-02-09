@@ -55,7 +55,7 @@ func (client *ClickHouseClient) CreateDatabase(ctx context.Context, database Cli
 		query += " COMMENT " + QuoteValue(database.Comment)
 	}
 
-	tflog.Info(ctx, "Creating a database", map[string]interface{}{"query": query})
+	tflog.Info(ctx, "Creating a database", dict{"query": query})
 
 	return client.Conn.Exec(ctx, query)
 }
@@ -66,7 +66,7 @@ func (client *ClickHouseClient) DropDatabase(ctx context.Context, database strin
 		QuoteID(database),
 	)
 
-	tflog.Info(ctx, "Dropping a database", map[string]interface{}{"query": query})
+	tflog.Info(ctx, "Dropping a database", dict{"query": query})
 
 	return client.Conn.Exec(ctx, query)
 }
@@ -79,7 +79,7 @@ func (client *ClickHouseClient) GetDatabase(ctx context.Context, name string) (C
 		QuoteValue(name),
 	)
 
-	tflog.Debug(ctx, "Getting a database", map[string]interface{}{"query": query})
+	tflog.Debug(ctx, "Getting a database", dict{"query": query})
 
 	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {

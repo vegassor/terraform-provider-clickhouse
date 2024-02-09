@@ -108,7 +108,7 @@ func (client *ClickHouseClient) DropUser(ctx context.Context, user string) error
 		QuoteValue(user),
 	)
 
-	tflog.Info(ctx, "Dropping a user", map[string]interface{}{"query": query})
+	tflog.Info(ctx, "Dropping a user", dict{"query": query})
 
 	return client.Conn.Exec(ctx, query)
 }
@@ -122,7 +122,7 @@ WHERE "name" = %s`,
 		QuoteValue(name),
 	)
 
-	tflog.Info(ctx, "Querying a user", map[string]interface{}{"query": query})
+	tflog.Info(ctx, "Querying a user", dict{"query": query})
 
 	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {
@@ -202,7 +202,7 @@ func (client *ClickHouseClient) AlterUser(ctx context.Context, origName string, 
 		user.DefaultDatabase.String(),
 	)
 
-	tflog.Info(ctx, "Altering a user", map[string]interface{}{
+	tflog.Info(ctx, "Altering a user", dict{
 		"query":        query,
 		"origUsername": origName,
 		"newUsername":  user.Name,
