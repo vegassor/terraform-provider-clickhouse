@@ -5,8 +5,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 )
 
@@ -34,23 +38,26 @@ func (r *RoleGrantResource) Metadata(ctx context.Context, req resource.MetadataR
 
 func (r *RoleGrantResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "ClickHouse user",
+		MarkdownDescription: "Grant of ClickHouse role to user or another role",
 		Attributes: map[string]schema.Attribute{
 			"role": schema.StringAttribute{
 				MarkdownDescription: "Role to grant",
 				Required:            true,
 				Validators:          []validator.String{ClickHouseIdentifierValidator},
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"grantee": schema.StringAttribute{
 				MarkdownDescription: "User or role to grant the role to",
 				Required:            true,
 				Validators:          []validator.String{ClickHouseIdentifierValidator},
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"with_admin_option": schema.BoolAttribute{
 				MarkdownDescription: "Whether to grant role with admin option or not",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
 			},
 			"grant_type": schema.StringAttribute{
 				MarkdownDescription: "Whether grant given to user or role",
@@ -116,9 +123,34 @@ func (r *RoleGrantResource) Read(ctx context.Context, req resource.ReadRequest, 
 }
 
 func (r *RoleGrantResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	resp.Diagnostics.AddError(
+		"Cannot update role grant",
+		"Role grant should always be recreated. "+
+			"If you see this error - it is a bug in provider.",
+	)
 }
 
 func (r *RoleGrantResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var model RoleGrantResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.RevokeRole(ctx, model.Role, model.Grantee)
+	if err == nil {
+		return
+	}
+
+	if err.(*chclient.NotFoundError) != nil {
+		tflog.Info(ctx, "Role grant already deleted", dict{})
+		return
+	}
+
+	resp.Diagnostics.AddError(
+		"Cannot revoke role grant",
+		err.Error(),
+	)
 }
 
 func (r *RoleGrantResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

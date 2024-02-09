@@ -70,6 +70,18 @@ WHERE "user_name" = %s OR "role_name" = %s`,
 	return roleGrant, nil
 }
 
-func (client *ClickHouseClient) RevokeRoleGrant(ctx context.Context, roleName string) error {
-	return nil
+func (client *ClickHouseClient) RevokeRole(ctx context.Context, roleName, grantee string) error {
+	grant, err := client.GetRoleGrant(ctx, roleName, grantee)
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf(
+		"REVOKE %s FROM %s",
+		QuoteWithTicks(grant.Role),
+		QuoteWithTicks(grant.Grantee),
+	)
+
+	tflog.Info(ctx, "Revoking role grant", dict{"query": query})
+	return client.Conn.Exec(ctx, query)
 }

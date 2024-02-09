@@ -32,10 +32,10 @@ resource "clickhouse_user" "my_user" {
 }
 
 resource "clickhouse_role" "my_role" {
-  name     = "my_role"
+  name = "my_role"
 }
 
 resource "clickhouse_role_grant" "my_role" {
-  role     = clickhouse_role.my_role.name
+  role    = clickhouse_role.my_role.name
   grantee = clickhouse_user.my_user.name
 }

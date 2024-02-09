@@ -1,5 +1,5 @@
 ---
-name: Create database resource
+name: Create role_grant resource
 input:
   - name: file.tf
     content: |
@@ -21,3 +21,52 @@ input:
 checks:
   - query: select user_name, role_name, granted_role_name, with_admin_option from system.role_grants
     result: [["my_user", null, "my_role", 0]]
+
+---
+name: Update role_grant resource
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_user" "my_user" {
+        name = "my_user2"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+      resource "clickhouse_role_grant" "my_role_grant" {
+        role    = clickhouse_role.my_role.name
+        grantee = clickhouse_user.my_user.name
+      }
+checks:
+  - query: select user_name, role_name, granted_role_name, with_admin_option from system.role_grants
+    result: [["my_user2", null, "my_role", 0]]
+
+---
+name: Update role_grant resource (with_admin_option)
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_user" "my_user" {
+        name = "my_user2"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+      resource "clickhouse_role_grant" "my_role_grant" {
+        role              = clickhouse_role.my_role.name
+        grantee           = clickhouse_user.my_user.name
+        with_admin_option = true
+      }
+checks:
+  - query: select user_name, role_name, granted_role_name, with_admin_option from system.role_grants
+    result: [["my_user2", null, "my_role", 1]]

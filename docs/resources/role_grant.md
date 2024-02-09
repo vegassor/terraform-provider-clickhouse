@@ -3,12 +3,12 @@
 page_title: "clickhouse_role_grant Resource - terraform-provider-clickhouse"
 subcategory: ""
 description: |-
-  ClickHouse user
+  Grant of ClickHouse role to user or another role
 ---
 
 # clickhouse_role_grant (Resource)
 
-ClickHouse user
+Grant of ClickHouse role to user or another role
 
 
 
@@ -26,4 +26,4 @@ ClickHouse user
 
 ### Read-Only
 
-- `id` (String) UUID of the role grant
+- `grant_type` (String) Whether grant given to user or role
