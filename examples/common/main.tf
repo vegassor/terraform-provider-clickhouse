@@ -39,3 +39,13 @@ resource "clickhouse_role_grant" "my_role" {
   role    = clickhouse_role.my_role.name
   grantee = clickhouse_user.my_user.name
 }
+
+resource "clickhouse_privilege_grant" "to_user" {
+  grantee = clickhouse_user.my_user.name
+
+  database = clickhouse_database.my_db.name
+  entity   = clickhouse_table.my_table.name
+
+  access_type = "SELECT"
+  columns = ["col1", "col2"]
+}

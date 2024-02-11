@@ -52,7 +52,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"database": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse database name",
 				Required:            true,
-				Validators:          []validator.String{ClickHouseIdentifierValidator},
+				Validators:          []validator.String{clickHouseIdentifierValidator},
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"name": schema.StringAttribute{
@@ -100,7 +100,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"name": schema.StringAttribute{
 							Required:            true,
 							MarkdownDescription: "Column name in ClickHouse table",
-							Validators:          []validator.String{ClickHouseIdentifierValidator},
+							Validators:          []validator.String{clickHouseIdentifierValidator},
 						},
 						"type": schema.StringAttribute{
 							Required:            true,

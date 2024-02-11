@@ -1,0 +1,54 @@
+---
+name: Create privilege_grant resource
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+      resource "clickhouse_privilege_grant" "to_user" {
+        grantee = clickhouse_user.my_user.name
+
+        database = "default"
+        entity   = clickhouse_table.my_table.name
+
+        access_type = "SELECT"
+        columns = ["col1", "col2"]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where user_name = 'my_user'
+      order by column
+    result:
+      - ["my_user", null, "SELECT", "default", "my_table", "col1", 0]
+      - ["my_user", null, "SELECT", "default", "my_table", "col2", 0]
+  - query: show grants for my_user
+    result: [["GRANT SELECT(col1, col2) ON default.my_table TO my_user"]]

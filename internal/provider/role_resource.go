@@ -34,7 +34,7 @@ func (r *RoleResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Role name in ClickHouse",
 				Required:            true,
-				Validators:          []validator.String{ClickHouseIdentifierValidator},
+				Validators:          []validator.String{clickHouseIdentifierValidator},
 			},
 		},
 	}
