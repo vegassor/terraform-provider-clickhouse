@@ -37,7 +37,24 @@ func QuoteWithTicks(v string) string {
 		v = v[:end]
 	}
 	v = strings.ReplaceAll(v, `\`, `\\`)
-	v = strings.ReplaceAll(v, `'`, `\'`)
+	v = strings.ReplaceAll(v, "`", "\\`")
 
 	return "`" + v + "`"
+}
+
+func QuoteList(v []string, quote string) []string {
+	result := make([]string, 0, len(v))
+
+	for _, s := range v {
+		val := s
+		end := strings.IndexRune(val, 0)
+		if end > -1 {
+			val = val[:end]
+		}
+		val = strings.ReplaceAll(val, `\`, `\\`)
+		val = strings.ReplaceAll(val, quote, "\\"+quote)
+		result = append(result, quote+val+quote)
+	}
+
+	return result
 }

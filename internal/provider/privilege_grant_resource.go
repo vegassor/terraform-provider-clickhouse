@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -25,11 +27,13 @@ type PrivilegeGrantResource struct {
 }
 
 type PrivilegeGrantResourceModel struct {
-	Database string        `tfsdk:"database"`
-	Name     string        `tfsdk:"name"`
-	Engine   string        `tfsdk:"engine"`
-	Columns  []ColumnModel `tfsdk:"columns"`
-	Comment  string        `tfsdk:"comment"`
+	Grantee         string   `tfsdk:"grantee"`
+	AccessType      string   `tfsdk:"access_type"`
+	Database        string   `tfsdk:"database"`
+	Entity          string   `tfsdk:"entity"`
+	Columns         []string `tfsdk:"columns"`
+	WithGrantOption bool     `tfsdk:"with_grant_option"`
+	//GrantType       types.String `tfsdk:"grant_type"`
 }
 
 func (r *PrivilegeGrantResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -68,6 +72,7 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 				MarkdownDescription: "Name of a table/view/matview/dictionary etc or '*' for all entities",
 				Required:            true,
 				Validators: []validator.String{stringvalidator.OneOf(
+					"SELECT",
 					"INSERT",
 					"ALTER",
 					"CREATE",
@@ -89,6 +94,13 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 				)},
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
+			"with_grant_option": schema.BoolAttribute{
+				MarkdownDescription: "Whether to grant privilege with grant option or not",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
+			},
 		},
 	}
 }
@@ -109,7 +121,18 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	// TODO!
+	grant := chclient.PrivilegeGrant{
+		Grantee:   model.Grantee,
+		Database:  model.Database,
+		Entity:    model.Entity,
+		Privilege: model.AccessType,
+		Columns:   model.Columns,
+	}
+	err := r.client.GrantPrivilege(ctx, grant)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to grant privilege", err.Error())
+		return
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }

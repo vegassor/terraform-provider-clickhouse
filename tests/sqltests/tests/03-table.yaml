@@ -7,6 +7,59 @@ input:
         database = "default"
         name     = "my_table"
         engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 comment"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', '']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', 'col1 comment']
+      - ['default', 'my_table', 'col2', 'Float64', 2, '', '', '']
+
+---
+name: Add comment
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
         comment  = "Some comment"
 
         columns = [

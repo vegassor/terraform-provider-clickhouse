@@ -68,6 +68,8 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"comment": schema.StringAttribute{
 				MarkdownDescription: "Comment for the table",
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"engine": schema.StringAttribute{
