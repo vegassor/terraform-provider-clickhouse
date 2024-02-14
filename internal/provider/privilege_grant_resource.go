@@ -7,10 +7,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 )
 
@@ -60,6 +63,8 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 			"grants": schema.ListNestedAttribute{
 				Required:            true,
 				MarkdownDescription: "`TODO`",
+				Validators:          []validator.List{listvalidator.SizeAtLeast(1)},
+				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"database": schema.StringAttribute{
@@ -75,10 +80,12 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 							PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 						},
 						"columns": schema.ListAttribute{
-							Required:            true,
+							Optional:            true,
+							Computed:            true,
 							MarkdownDescription: "Columns of ClickHouse table. If empty or null, it is supposed *all* columns are allowed",
 							ElementType:         types.StringType,
 							Validators:          []validator.List{listvalidator.All()},
+							Default:             listdefault.StaticValue(basetypes.NewListValueMust(types.StringType, nil)),
 						},
 						"with_grant_option": schema.BoolAttribute{
 							MarkdownDescription: "Whether to grant privilege with grant option or not",
@@ -112,11 +119,11 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 
 	for _, grant := range model.Grants {
 		g := chclient.PrivilegeGrant{
-			Grantee:   model.Grantee,
-			Database:  grant.Database,
-			Entity:    grant.Table,
-			Privilege: model.AccessType,
-			Columns:   grant.Columns,
+			Grantee:    model.Grantee,
+			Database:   grant.Database,
+			Table:      grant.Table,
+			AccessType: model.AccessType,
+			Columns:    grant.Columns,
 		}
 		err := r.client.GrantPrivilege(ctx, g)
 		if err != nil {
@@ -129,6 +136,38 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 }
 
 func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var stateModel PrivilegeGrantResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateModel)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	receivedGrants, err := r.client.GetPrivilegeGrants(ctx, stateModel.Grantee, stateModel.AccessType)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot find privilege grant",
+			err.Error(),
+		)
+		return
+	}
+
+	grants := make([]GrantRecord, 0, len(receivedGrants))
+	for _, grant := range receivedGrants {
+		grants = append(grants, GrantRecord{
+			Database:        grant.Database,
+			Table:           grant.Table,
+			Columns:         grant.Columns,
+			WithGrantOption: grant.GrantOption,
+		})
+	}
+
+	readModel := PrivilegeGrantResourceModel{
+		Grantee:    stateModel.Grantee,
+		AccessType: stateModel.AccessType,
+		Grants:     grants,
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, readModel)...)
 }
 
 func (r *PrivilegeGrantResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {

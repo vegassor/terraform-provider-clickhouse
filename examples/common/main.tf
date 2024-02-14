@@ -50,10 +50,15 @@ resource "clickhouse_privilege_grant" "to_user" {
       table    = clickhouse_table.my_table.name
       columns  = ["col1", "col2"]
     },
-#    {
-#      database = clickhouse_database.my_another_db.name
-#      table    = "*"
-#    },
+    {
+      database = "default"
+      table    = "example_2"
+      columns  = ["x", "y"]
+    },
+    {
+      database = "default"
+      table    = "example"
+    },
   ]
 
   # TODO: implement partial revoke

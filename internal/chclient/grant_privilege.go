@@ -9,19 +9,20 @@ import (
 )
 
 type PrivilegeGrant struct {
-	Grantee   string
-	Database  string
-	Entity    string
-	Privilege string
-	Columns   []string
+	Grantee     string
+	AccessType  string
+	Database    string
+	Table       string
+	Columns     []string
+	GrantOption bool
 }
 
 func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant PrivilegeGrant) error {
-	what := grant.Privilege
+	what := grant.AccessType
 	if len(grant.Columns) > 0 {
 		what = fmt.Sprintf(
 			"%s(%s)",
-			grant.Privilege,
+			grant.AccessType,
 			strings.Join(QuoteList(grant.Columns, `"`), ", "),
 		)
 	}
@@ -30,8 +31,8 @@ func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant Privil
 		return errors.New("database is required")
 	}
 	on := QuoteID(grant.Database)
-	if grant.Entity != "" {
-		on = on + "." + QuoteID(grant.Entity)
+	if grant.Table != "" {
+		on = on + "." + QuoteID(grant.Table)
 	}
 
 	query := fmt.Sprintf(
@@ -45,13 +46,13 @@ func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant Privil
 	return client.Conn.Exec(ctx, query)
 }
 
-func (client *ClickHouseClient) GetPrivilegeGrant(ctx context.Context, grantee, accessType string) (PrivilegeGrant, error) {
+func (client *ClickHouseClient) GetPrivilegeGrants(ctx context.Context, grantee, accessType string) ([]PrivilegeGrant, error) {
 	query := fmt.Sprintf(`SELECT
-    grant_option,
-    groupArray(database) as databases,
-    groupArray(table) as tables,
-    groupArray(column) as columns
-FROM system.grants
+    database,
+    table,
+    groupArray(column) as columns,
+    grant_option
+FROM "system"."grants"
 WHERE
     (role_name = %s OR user_name = %s)
     AND access_type = %s
@@ -59,36 +60,43 @@ WHERE
 GROUP BY
     access_type,
     role_name,
+    database,
+    table,
     grant_option`,
 		QuoteValue(grantee),
 		QuoteValue(grantee),
 		QuoteValue(accessType),
 	)
 
-	tflog.Info(ctx, "Querying privileges: %s", dict{"query": query})
+	tflog.Info(ctx, "Querying privileges", dict{"query": query})
 	rows, err := client.Conn.Query(ctx, query)
+	tflog.Info(ctx, "Aaaa", dict{"ccc": err})
 	if err != nil {
-		return PrivilegeGrant{}, err
+		return nil, err
 	}
 	defer rows.Close()
 
-	var r []struct {
-		GrantOption int8     `db:"grant_option"`
-		Databases   []string `db:"databases"`
-		Tables      []string `db:"tables"`
-		Columns     []string `db:"columns"`
+	var grants []PrivilegeGrant
+	for rows.Next() {
+		var db, table string
+		var columns []string
+		var grantOption uint8
+		err = rows.Scan(&db, &table, &columns, &grantOption)
+		if err != nil {
+			return nil, err
+		}
+		tflog.Info(ctx, "ITERATION", dict{"ctx": rows, "ccc": err})
+		grants = append(grants, PrivilegeGrant{
+			Grantee:     grantee,
+			AccessType:  accessType,
+			Database:    db,
+			Table:       table,
+			Columns:     columns,
+			GrantOption: grantOption == 1,
+		})
 	}
-	err = rows.Scan(&r)
-	if err != nil {
-		return PrivilegeGrant{}, err
-	}
-	//for rows.Next() {
-	//	var dbs, tables, columns []string
-	//	var grantOption int8
-	//
-	//}
 
 	tflog.Info(ctx, "What I got: %s", dict{"query": query})
 
-	return PrivilegeGrant{}, nil
+	return grants, nil
 }
