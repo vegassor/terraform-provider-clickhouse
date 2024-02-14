@@ -2,18 +2,17 @@ package provider
 
 import (
 	"context"
-	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 )
 
@@ -60,11 +59,11 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 				Required:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"grants": schema.ListNestedAttribute{
+			"grants": schema.SetNestedAttribute{
 				Required:            true,
 				MarkdownDescription: "`TODO`",
-				Validators:          []validator.List{listvalidator.SizeAtLeast(1)},
-				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
+				Validators:          []validator.Set{setvalidator.SizeAtLeast(1)},
+				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown()},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"database": schema.StringAttribute{
@@ -81,11 +80,9 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 						},
 						"columns": schema.ListAttribute{
 							Optional:            true,
-							Computed:            true,
 							MarkdownDescription: "Columns of ClickHouse table. If empty or null, it is supposed *all* columns are allowed",
+							PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace(), listplanmodifier.UseStateForUnknown()},
 							ElementType:         types.StringType,
-							Validators:          []validator.List{listvalidator.All()},
-							Default:             listdefault.StaticValue(basetypes.NewListValueMust(types.StringType, nil)),
 						},
 						"with_grant_option": schema.BoolAttribute{
 							MarkdownDescription: "Whether to grant privilege with grant option or not",
@@ -112,7 +109,6 @@ func (r *PrivilegeGrantResource) Configure(ctx context.Context, req resource.Con
 func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var model PrivilegeGrantResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -154,6 +150,9 @@ func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequ
 
 	grants := make([]GrantRecord, 0, len(receivedGrants))
 	for _, grant := range receivedGrants {
+		if len(grant.Columns) == 0 {
+			grant.Columns = nil
+		}
 		grants = append(grants, GrantRecord{
 			Database:        grant.Database,
 			Table:           grant.Table,
