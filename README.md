@@ -13,7 +13,8 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
 - [ ] Resources
   - [x] Role resource
   - [ ] Grant privilege resource
-  - [ ] Grant role resource
+    - [ ] Implement partial revoke support
+  - [x] Grant role resource
   - [ ] Dictionary resource
   - [ ] View resource
   - [ ] MatView resource

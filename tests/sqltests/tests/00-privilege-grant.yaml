@@ -32,13 +32,16 @@ input:
       }
 
       resource "clickhouse_privilege_grant" "to_user" {
-        grantee = clickhouse_user.my_user.name
-
-        database = "default"
-        entity   = clickhouse_table.my_table.name
-
+        grantee     = clickhouse_user.my_user.name
         access_type = "SELECT"
-        columns = ["col1", "col2"]
+
+        grants = [
+          {
+            database = "default"
+            table    = clickhouse_table.my_table.name
+            columns  = ["col1", "col2"]
+          },
+        ]
       }
 checks:
   - query: >

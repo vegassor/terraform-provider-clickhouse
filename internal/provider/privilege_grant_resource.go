@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -26,14 +25,17 @@ type PrivilegeGrantResource struct {
 	client *chclient.ClickHouseClient
 }
 
-type PrivilegeGrantResourceModel struct {
-	Grantee         string   `tfsdk:"grantee"`
-	AccessType      string   `tfsdk:"access_type"`
+type GrantRecord struct {
 	Database        string   `tfsdk:"database"`
-	Entity          string   `tfsdk:"entity"`
+	Table           string   `tfsdk:"table"`
 	Columns         []string `tfsdk:"columns"`
 	WithGrantOption bool     `tfsdk:"with_grant_option"`
-	//GrantType       types.String `tfsdk:"grant_type"`
+}
+
+type PrivilegeGrantResourceModel struct {
+	Grantee    string        `tfsdk:"grantee"`
+	AccessType string        `tfsdk:"access_type"`
+	Grants     []GrantRecord `tfsdk:"grants"`
 }
 
 func (r *PrivilegeGrantResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -50,56 +52,43 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 				Validators:          []validator.String{clickHouseIdentifierValidator},
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"database": schema.StringAttribute{
-				MarkdownDescription: "ClickHouse database name",
-				Required:            true,
-				Validators:          []validator.String{},
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
-			},
-			"entity": schema.StringAttribute{
-				MarkdownDescription: "Name of a table/view/matview/dictionary etc or '*' for all entities",
-				Required:            true,
-				Validators:          []validator.String{grantEntityValidator{}},
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
-			},
-			"columns": schema.ListAttribute{
-				Required:            true,
-				MarkdownDescription: "Columns of ClickHouse table. If empty or null, it is supposed *all* columns are allowed",
-				ElementType:         types.StringType,
-				Validators:          []validator.List{listvalidator.All()},
-			},
 			"access_type": schema.StringAttribute{
 				MarkdownDescription: "Name of a table/view/matview/dictionary etc or '*' for all entities",
 				Required:            true,
-				Validators: []validator.String{stringvalidator.OneOf(
-					"SELECT",
-					"INSERT",
-					"ALTER",
-					"CREATE",
-					"DROP",
-					"UNDROP TABLE",
-					"TRUNCATE",
-					"OPTIMIZE",
-					"BACKUP",
-					"KILL QUERY",
-					"KILL TRANSACTION",
-					"MOVE PARTITION BETWEEN SHARDS",
-					"SYSTEM",
-					"dictGet",
-					"displaySecretsInShowAndSelect",
-					"INTROSPECTION",
-					"SOURCES",
-					"CLUSTER",
-					"ACCESS MANAGEMENT",
-				)},
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"with_grant_option": schema.BoolAttribute{
-				MarkdownDescription: "Whether to grant privilege with grant option or not",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
+			"grants": schema.ListNestedAttribute{
+				Required:            true,
+				MarkdownDescription: "`TODO`",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"database": schema.StringAttribute{
+							MarkdownDescription: "ClickHouse database name",
+							Required:            true,
+							Validators:          []validator.String{},
+							PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
+						},
+						"table": schema.StringAttribute{
+							MarkdownDescription: "Name of a table/view/matview/dictionary etc or '*' for all entities",
+							Required:            true,
+							Validators:          []validator.String{grantEntityValidator{}},
+							PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
+						},
+						"columns": schema.ListAttribute{
+							Required:            true,
+							MarkdownDescription: "Columns of ClickHouse table. If empty or null, it is supposed *all* columns are allowed",
+							ElementType:         types.StringType,
+							Validators:          []validator.List{listvalidator.All()},
+						},
+						"with_grant_option": schema.BoolAttribute{
+							MarkdownDescription: "Whether to grant privilege with grant option or not",
+							Optional:            true,
+							Computed:            true,
+							Default:             booldefault.StaticBool(false),
+							PlanModifiers:       []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -121,17 +110,19 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	grant := chclient.PrivilegeGrant{
-		Grantee:   model.Grantee,
-		Database:  model.Database,
-		Entity:    model.Entity,
-		Privilege: model.AccessType,
-		Columns:   model.Columns,
-	}
-	err := r.client.GrantPrivilege(ctx, grant)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to grant privilege", err.Error())
-		return
+	for _, grant := range model.Grants {
+		g := chclient.PrivilegeGrant{
+			Grantee:   model.Grantee,
+			Database:  grant.Database,
+			Entity:    grant.Table,
+			Privilege: model.AccessType,
+			Columns:   grant.Columns,
+		}
+		err := r.client.GrantPrivilege(ctx, g)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to grant privilege", err.Error())
+			return
+		}
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
