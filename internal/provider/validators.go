@@ -12,18 +12,9 @@ import (
 type IdentifiedWithValidator struct{}
 
 func (v IdentifiedWithValidator) ValidateMap(ctx context.Context, req validator.MapRequest, resp *validator.MapResponse) {
-	//tflog.Info(ctx, fmt.Sprintf("req config: %v", req.Config))
-	//tflog.Info(ctx, fmt.Sprintf("req config value: %v", req.ConfigValue))
-	//tflog.Info(ctx, fmt.Sprintf("req path: %v", req.Path))
-	//tflog.Info(ctx, fmt.Sprintf("req path expr: %v", req.PathExpression))
-
-	//tflog.Info(ctx, fmt.Sprintf("req map: %v", req.ConfigValue.Elements()))
-
 	for k, v := range req.ConfigValue.Elements() {
 		tflog.Info(ctx, fmt.Sprintf("reqmap %s=%v", k, v.Type(ctx)))
 	}
-
-	//tflog.Info(ctx, fmt.Sprintf("res: %v", resp))
 }
 
 func (v IdentifiedWithValidator) Description(context.Context) string {
@@ -34,8 +25,37 @@ func (v IdentifiedWithValidator) MarkdownDescription(context.Context) string {
 	return "ABOBA MD"
 }
 
-var ClickHouseIdentifierValidator = stringvalidator.RegexMatches(
+var clickHouseIdentifierValidator = stringvalidator.RegexMatches(
 	regexp.MustCompile("^[a-zA-Z0-9_]+$"),
 	"Should contain only latin letters, digits and _."+
 		" Should not be empty.",
 )
+
+type grantEntityValidator struct{}
+
+func (v grantEntityValidator) Description(context.Context) string {
+	return "Value should be a name of ClickHouse table, view, dict, etc " +
+		"(regex=\"^[a-zA-Z0-9_]+$\") or \"*\""
+}
+
+func (v grantEntityValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v grantEntityValidator) ValidateString(ctx context.Context, request validator.StringRequest, response *validator.StringResponse) {
+	if request.ConfigValue.IsNull() || request.ConfigValue.IsUnknown() {
+		return
+	}
+
+	value := request.ConfigValue.ValueString()
+	if value == "*" {
+		return
+	}
+
+	regexValidator := stringvalidator.RegexMatches(
+		regexp.MustCompile("^[a-zA-Z0-9_]+$"),
+		"Should contain only latin letters, digits and _."+
+			" Should not be empty.",
+	)
+	regexValidator.ValidateString(ctx, request, response)
+}

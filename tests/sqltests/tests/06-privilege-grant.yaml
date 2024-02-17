@@ -1,0 +1,391 @@
+---
+name: Create privilege_grant resource
+input:
+  - name: base.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+  - name: grant.tf
+    content: |
+      resource "clickhouse_privilege_grant" "to_user" {
+        grantee     = clickhouse_user.my_user.name
+        access_type = "SELECT"
+
+        grants = [
+          {
+            database = "default"
+            table    = clickhouse_table.my_table.name
+            columns  = ["col1", "col2"]
+          },
+        ]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where user_name = 'my_user'
+      order by column
+    result:
+      - ["my_user", null, "SELECT", "default", "my_table", "col1", 0]
+      - ["my_user", null, "SELECT", "default", "my_table", "col2", 0]
+  - query: show grants for my_user
+    result: [["GRANT SELECT(col1, col2) ON default.my_table TO my_user"]]
+
+---
+name: Update privilege_grant resource
+input:
+  - name: base.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+  - name: grant.tf
+    content: |
+      resource "clickhouse_privilege_grant" "to_user" {
+        grantee     = clickhouse_user.my_user.name
+        access_type = "SELECT"
+
+        grants = [
+          {
+            database = "default"
+            table    = clickhouse_table.my_table.name
+            columns  = ["col1", "col2"]
+          },
+          {
+            database = "default"
+            table    = "example"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where user_name = 'my_user'
+      order by column
+    result:
+      - ["my_user", null, "SELECT", "default", "my_table", "col1", 0]
+      - ["my_user", null, "SELECT", "default", "my_table", "col2", 0]
+      - ["my_user", null, "SELECT", "default", "example", null, 0]
+  - query: show grants for my_user
+    result:
+      - ["GRANT SELECT ON default.example TO my_user"]
+      - ["GRANT SELECT(col1, col2) ON default.my_table TO my_user"]
+
+---
+name: Use * for grants
+input:
+  - name: base.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+  - name: grant.tf
+    content: |
+      resource "clickhouse_privilege_grant" "to_user" {
+        grantee     = clickhouse_user.my_user.name
+        access_type = "SELECT"
+
+        grants = [
+          {
+            database = "default"
+            table    = clickhouse_table.my_table.name
+            columns  = ["col1", "col2"]
+          },
+          {
+            database = "somedb"
+            table    = "*"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where user_name = 'my_user'
+      order by column
+    result:
+      - ["my_user", null, "SELECT", "default", "my_table", "col1", 0]
+      - ["my_user", null, "SELECT", "default", "my_table", "col2", 0]
+      - ["my_user", null, "SELECT", "somedb", null, null, 0]
+  - query: show grants for my_user
+    result:
+      - ["GRANT SELECT(col1, col2) ON default.my_table TO my_user"]
+      - ["GRANT SELECT ON somedb.* TO my_user"]
+
+---
+name: Grants for role
+input:
+  - name: base.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+  - name: grant.tf
+    content: |
+      resource "clickhouse_privilege_grant" "to_role" {
+        grantee     = clickhouse_role.my_role.name
+        access_type = "SELECT"
+
+        grants = [
+          {
+            database = "default"
+            table    = clickhouse_table.my_table.name
+            columns  = ["col1", "col2"]
+          },
+          {
+            database = "somedb"
+            table    = "*"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where role_name = 'my_role'
+      order by column
+    result:
+      - [null, "my_role", "SELECT", "default", "my_table", "col1", 0]
+      - [null, "my_role", "SELECT", "default", "my_table", "col2", 0]
+      - [null, "my_role", "SELECT", "somedb", null, null, 0]
+  - query: select count(*) from system.grants where user_name = 'my_user'
+    result: [[0]]
+  - query: show grants for my_role
+    result:
+      - ["GRANT SELECT(col1, col2) ON default.my_table TO my_role"]
+      - ["GRANT SELECT ON somedb.* TO my_role"]
+
+---
+name: Config that always produces re-creation of grant
+input:
+  - name: base.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+  - name: grant.tf
+    content: |
+      resource "clickhouse_privilege_grant" "to_role" {
+        grantee     = clickhouse_role.my_role.name
+        access_type = "SELECT"
+
+        grants = [
+          {
+            database = "default"
+            table    = clickhouse_table.my_table.name
+            columns  = ["col1", "col2"]
+          },
+          {
+            database = "default"
+            table    = "*"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where role_name = 'my_role'
+      order by column
+    result:
+      - [null, "my_role", "SELECT", "default", null, null, 0]
+
+---
+name: With grant option
+input:
+  - name: base.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name = "col1"
+            type = "String"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          }
+        ]
+      }
+
+      resource "clickhouse_user" "my_user" {
+        name = "my_user"
+        identified_with = {
+          sha256_password = "qwerty12345"
+        }
+      }
+
+      resource "clickhouse_role" "my_role" {
+        name = "my_role"
+      }
+
+  - name: grant.tf
+    content: |
+      resource "clickhouse_privilege_grant" "to_role" {
+        grantee     = clickhouse_role.my_role.name
+        access_type = "SELECT"
+
+        grants = [
+          {
+            database          = "default"
+            table             = clickhouse_table.my_table.name
+            columns           = ["col1", "col2"]
+            with_grant_option = true
+          },
+          {
+            database = "somedb"
+            table    = "*"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select user_name, role_name, access_type,
+        database, table, column, grant_option
+      from system.grants
+      where role_name = 'my_role'
+      order by column
+    result:
+      - [null, "my_role", "SELECT", "default", "my_table", "col1", 1]
+      - [null, "my_role", "SELECT", "default", "my_table", "col2", 1]
+      - [null, "my_role", "SELECT", "somedb", null, null, 0]
+  - query: show grants for my_role
+    result:
+      - ["GRANT SELECT(col1, col2) ON default.my_table TO my_role WITH GRANT OPTION"]
+      - ["GRANT SELECT ON somedb.* TO my_role"]

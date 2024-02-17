@@ -70,6 +70,8 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 			"comment": schema.StringAttribute{
 				MarkdownDescription: "Comment for database",
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			// TODO: engine args and settings

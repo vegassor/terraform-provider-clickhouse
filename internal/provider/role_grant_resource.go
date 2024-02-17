@@ -44,13 +44,13 @@ func (r *RoleGrantResource) Schema(ctx context.Context, req resource.SchemaReque
 			"role": schema.StringAttribute{
 				MarkdownDescription: "Role to grant",
 				Required:            true,
-				Validators:          []validator.String{ClickHouseIdentifierValidator},
+				Validators:          []validator.String{clickHouseIdentifierValidator},
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"grantee": schema.StringAttribute{
 				MarkdownDescription: "User or role to grant the role to",
 				Required:            true,
-				Validators:          []validator.String{ClickHouseIdentifierValidator},
+				Validators:          []validator.String{clickHouseIdentifierValidator},
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"with_admin_option": schema.BoolAttribute{

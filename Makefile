@@ -33,5 +33,5 @@ chup:
 	cd ${CH_DOCKER_DIR} && docker-compose up -d
 chdn:
 	cd ${CH_DOCKER_DIR} && docker-compose down
-chrs:
-	cd ${CH_DOCKER_DIR} && docker-compose down && docker-compose up -d
+
+chreset: chdn chup

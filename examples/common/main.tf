@@ -39,3 +39,28 @@ resource "clickhouse_role_grant" "my_role" {
   role    = clickhouse_role.my_role.name
   grantee = clickhouse_user.my_user.name
 }
+
+resource "clickhouse_privilege_grant" "to_user" {
+  grantee     = clickhouse_user.my_user.name
+  access_type = "SELECT"
+
+  grants = [
+    {
+      database = clickhouse_database.my_db.name
+      table    = clickhouse_table.my_table.name
+      columns  = ["col1", "col2"]
+    },
+    {
+      database = "default"
+      table    = "*"
+    },
+  ]
+
+  # TODO: implement partial revoke
+  # revoke = [
+  #   {
+  #     database = clickhouse_database.my_another_db.name
+  #     table    = "some_table"
+  #   },
+  # ]
+}
