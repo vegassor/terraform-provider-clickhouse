@@ -65,13 +65,13 @@ func (client *ClickHouseClient) RevokePrivilege(ctx context.Context, grant Privi
 	db := grant.Database
 	table := grant.Table
 
-	if db == "" {
+	if db == "" || db == "*" {
 		db = "*"
 	} else {
 		db = QuoteID(db)
 	}
 
-	if table == "" {
+	if table == "" || table == "*" {
 		table = "*"
 	} else {
 		table = QuoteID(table)
