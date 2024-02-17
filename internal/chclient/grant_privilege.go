@@ -47,6 +47,10 @@ func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant Privil
 		table,
 		grant.Grantee,
 	)
+	if grant.GrantOption {
+		query += " WITH GRANT OPTION"
+	}
+
 	tflog.Info(ctx, "Granting privilege: %s", dict{"query": query})
 
 	return client.Conn.Exec(ctx, query)

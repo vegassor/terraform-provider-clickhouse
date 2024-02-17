@@ -115,11 +115,12 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 
 	for _, grant := range model.Grants {
 		g := chclient.PrivilegeGrant{
-			Grantee:    model.Grantee,
-			Database:   grant.Database,
-			Table:      grant.Table,
-			AccessType: model.AccessType,
-			Columns:    grant.Columns,
+			Grantee:     model.Grantee,
+			Database:    grant.Database,
+			Table:       grant.Table,
+			AccessType:  model.AccessType,
+			Columns:     grant.Columns,
+			GrantOption: grant.WithGrantOption,
 		}
 		err := r.client.GrantPrivilege(ctx, g)
 		if err != nil {
