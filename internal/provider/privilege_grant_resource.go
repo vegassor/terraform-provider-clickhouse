@@ -63,7 +63,7 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 				Required:            true,
 				MarkdownDescription: "`TODO`",
 				Validators:          []validator.Set{setvalidator.SizeAtLeast(1)},
-				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown()},
+				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown(), setplanmodifier.RequiresReplace()},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"database": schema.StringAttribute{
@@ -170,9 +170,33 @@ func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequ
 }
 
 func (r *PrivilegeGrantResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	resp.Diagnostics.AddError(
+		"Update is not supported",
+		"Update is not supported for privilege_grant resource. "+
+			"You should never see this message, because every change must cause the "+
+			"resource to be re-created. Update may be implemented in future releases.",
+	)
 }
 
 func (r *PrivilegeGrantResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var model PrivilegeGrantResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	grant := chclient.PrivilegeGrant{
+		Grantee:    model.Grantee,
+		AccessType: model.AccessType,
+		Database:   "*",
+		Table:      "*",
+		Columns:    make([]string, 0),
+	}
+	err := r.client.RevokePrivilege(ctx, grant)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to revoke privilege", err.Error())
+		return
+	}
 }
 
 func (r *PrivilegeGrantResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

@@ -52,12 +52,7 @@ resource "clickhouse_privilege_grant" "to_user" {
     },
     {
       database = "default"
-      table    = "example"
-    },
-    {
-      database = "default"
-      table    = "example_2"
-      columns  = ["x", "y"]
+      table    = "*"
     },
   ]
 

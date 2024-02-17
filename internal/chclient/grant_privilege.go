@@ -18,6 +18,10 @@ type PrivilegeGrant struct {
 }
 
 func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant PrivilegeGrant) error {
+	if grant.Database == "" {
+		return errors.New("database is required")
+	}
+
 	what := grant.AccessType
 	if len(grant.Columns) > 0 {
 		what = fmt.Sprintf(
@@ -27,18 +31,20 @@ func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant Privil
 		)
 	}
 
-	if grant.Database == "" {
-		return errors.New("database is required")
+	db := grant.Database
+	table := grant.Table
+	if db != "*" {
+		db = QuoteID(db)
 	}
-	on := QuoteID(grant.Database)
-	if grant.Table != "" {
-		on = on + "." + QuoteID(grant.Table)
+	if table != "*" {
+		table = QuoteID(table)
 	}
 
 	query := fmt.Sprintf(
-		"GRANT %s ON %s TO %s",
+		"GRANT %s ON %s.%s TO %s",
 		what,
-		on,
+		db,
+		table,
 		grant.Grantee,
 	)
 	tflog.Info(ctx, "Granting privilege: %s", dict{"query": query})
@@ -46,10 +52,55 @@ func (client *ClickHouseClient) GrantPrivilege(ctx context.Context, grant Privil
 	return client.Conn.Exec(ctx, query)
 }
 
+func (client *ClickHouseClient) RevokePrivilege(ctx context.Context, grant PrivilegeGrant) error {
+	what := grant.AccessType
+	if len(grant.Columns) > 0 {
+		what = fmt.Sprintf(
+			"%s(%s)",
+			grant.AccessType,
+			strings.Join(QuoteList(grant.Columns, `"`), ", "),
+		)
+	}
+
+	db := grant.Database
+	table := grant.Table
+
+	if db == "" {
+		db = "*"
+	} else {
+		db = QuoteID(db)
+	}
+
+	if table == "" {
+		table = "*"
+	} else {
+		table = QuoteID(table)
+	}
+
+	query := fmt.Sprintf(
+		"REVOKE %s ON %s.%s FROM %s",
+		what,
+		db,
+		table,
+		grant.Grantee,
+	)
+	tflog.Info(ctx, "Revoking privilege", dict{
+		"query":        query,
+		"grantee":      grant.Grantee,
+		"access_type":  grant.AccessType,
+		"database":     grant.Database,
+		"table":        grant.Table,
+		"columns":      grant.Columns,
+		"grant_option": grant.GrantOption,
+	})
+
+	return client.Conn.Exec(ctx, query)
+}
+
 func (client *ClickHouseClient) GetPrivilegeGrants(ctx context.Context, grantee, accessType string) ([]PrivilegeGrant, error) {
 	query := fmt.Sprintf(`SELECT
-    database,
-    table,
+    coalesce(database, '*'),
+    coalesce(table, '*'),
     groupArray(column) as columns,
     grant_option
 FROM "system"."grants"
@@ -70,7 +121,6 @@ GROUP BY
 
 	tflog.Info(ctx, "Querying privileges", dict{"query": query})
 	rows, err := client.Conn.Query(ctx, query)
-	tflog.Info(ctx, "Aaaa", dict{"ccc": err})
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +135,6 @@ GROUP BY
 		if err != nil {
 			return nil, err
 		}
-		tflog.Info(ctx, "ITERATION", dict{"ctx": rows, "ccc": err})
 		grants = append(grants, PrivilegeGrant{
 			Grantee:     grantee,
 			AccessType:  accessType,
@@ -95,8 +144,6 @@ GROUP BY
 			GrantOption: grantOption == 1,
 		})
 	}
-
-	tflog.Info(ctx, "What I got: %s", dict{"query": query})
 
 	return grants, nil
 }

@@ -31,8 +31,7 @@ var clickHouseIdentifierValidator = stringvalidator.RegexMatches(
 		" Should not be empty.",
 )
 
-type grantEntityValidator struct {
-}
+type grantEntityValidator struct{}
 
 func (v grantEntityValidator) Description(context.Context) string {
 	return "Value should be a name of ClickHouse table, view, dict, etc " +
