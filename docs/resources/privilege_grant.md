@@ -19,7 +19,7 @@ ClickHouse table
 
 - `access_type` (String) Name of a table/view/matview/dictionary etc or '*' for all entities
 - `grantee` (String) User or role to grant the role to
-- `grants` (Attributes List) `TODO` (see [below for nested schema](#nestedatt--grants))
+- `grants` (Attributes Set) `TODO` (see [below for nested schema](#nestedatt--grants))
 
 <a id="nestedatt--grants"></a>
 ### Nested Schema for `grants`
