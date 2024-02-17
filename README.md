@@ -12,8 +12,8 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
   - [ ] Add HTTP (port 8123) configuration support
 - [ ] Resources
   - [x] Role resource
-  - [ ] Grant privilege resource
-    - [ ] Ignore 
+  - [x] Grant privilege resource
+    - [ ] Check if grants break the resource and cause re-creation on every plan
     - [ ] Implement partial revoke support
   - [x] Grant role resource
   - [ ] Dictionary resource
