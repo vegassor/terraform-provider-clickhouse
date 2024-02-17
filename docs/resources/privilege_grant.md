@@ -3,12 +3,12 @@
 page_title: "clickhouse_privilege_grant Resource - terraform-provider-clickhouse"
 subcategory: ""
 description: |-
-  ClickHouse table
+  Grant privileges to a user or role. Corresponds to system.grants table. Note, that pair (grantee, access_type) must be unique for every resource.
 ---
 
 # clickhouse_privilege_grant (Resource)
 
-ClickHouse table
+Grant privileges to a user or role. Corresponds to `system.grants` table. Note, that pair (`grantee`, `access_type`) must be unique for every resource.
 
 
 

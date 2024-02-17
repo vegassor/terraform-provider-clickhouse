@@ -46,7 +46,8 @@ func (r *PrivilegeGrantResource) Metadata(ctx context.Context, req resource.Meta
 
 func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "ClickHouse table",
+		MarkdownDescription: "Grant privileges to a user or role. Corresponds to `system.grants` table. " +
+			"Note, that pair (`grantee`, `access_type`) must be unique for every resource.",
 		Attributes: map[string]schema.Attribute{
 			"grantee": schema.StringAttribute{
 				MarkdownDescription: "User or role to grant the role to",
@@ -110,6 +111,25 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 	var model PrivilegeGrantResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	grants, err := r.client.GetPrivilegeGrants(ctx, model.Grantee, model.AccessType)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot check whether privilege grants already exist. "+
+				"This check is required due to the requirement that every `privilege_grant` "+
+				"resource must have unique (`grantee`, `access_type`) pair.",
+			err.Error(),
+		)
+		return
+	}
+	if len(grants) > 0 {
+		resp.Diagnostics.AddError(
+			"Privilege grants already exist",
+			"Privilege grants already exist for the given grantee and access type. "+
+				"Please, remove them before creating a new one.",
+		)
 		return
 	}
 
