@@ -38,4 +38,4 @@ checks:
       where
         database = 'default'
         and name = 'my_view'
-    result: [['default', 'my_view', 'View', 'SELECT col1 AS x FROM default.my_table']]
+    result: [['default', 'my_view', 'View', 0, 'SELECT col1 AS x FROM default.my_table']]

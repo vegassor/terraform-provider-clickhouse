@@ -251,7 +251,7 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 
 	table := toChClientTable(model)
 
-	err := r.client.DropTable(ctx, table)
+	err := r.client.DropTable(ctx, table, true)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot delete table",
