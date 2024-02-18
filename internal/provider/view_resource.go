@@ -143,6 +143,18 @@ func (r *ViewResource) Update(ctx context.Context, req resource.UpdateRequest, r
 }
 
 func (r *ViewResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var model ViewResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
+
+	view := chclient.ClickHouseTable{Database: model.Database, Name: model.Name}
+	err := r.client.DropTable(ctx, view, false)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot drop view",
+			err.Error(),
+		)
+		return
+	}
 }
 
 func (r *ViewResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

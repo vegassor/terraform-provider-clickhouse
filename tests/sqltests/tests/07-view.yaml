@@ -1,0 +1,129 @@
+---
+name: Create view resource
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 comment"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          },
+        ]
+      }
+
+      resource "clickhouse_view" "my_view" {
+        database = "default"
+        name     = "my_view"
+        query    = "select col1 as x from ${clickhouse_table.my_table.name}"
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        is_temporary,
+        as_select
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_view'
+    result: [['default', 'my_view', 'View', 0, 'SELECT col1 AS x FROM default.my_table']]
+
+---
+name: Update resource
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 comment"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          },
+        ]
+      }
+
+      resource "clickhouse_view" "my_view" {
+        database = "default"
+        name     = "my_view"
+        query    = "select col1, col2 as x from ${clickhouse_table.my_table.name}"
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        is_temporary,
+        as_select
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_view'
+    result: [['default', 'my_view', 'View', 0, 'SELECT col1, col2 AS x FROM default.my_table']]
+
+---
+name: Re-create view resource
+input:
+  - name: file.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+            comment  = "col1 comment"
+          },
+          {
+            name = "col2"
+            type = "Float64"
+          },
+        ]
+      }
+
+      resource "clickhouse_view" "my_view" {
+        database = "default"
+        name     = "my_view22"
+        query    = "select col1 as x from ${clickhouse_table.my_table.name}"
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        is_temporary,
+        as_select
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_view22'
+    result: [['default', 'my_view22', 'View', 0, 'SELECT col1 AS x FROM default.my_table']]
+  - query: >
+      select 1 from system.tables
+      where database = 'default' and name = 'my_view'
+    result: []

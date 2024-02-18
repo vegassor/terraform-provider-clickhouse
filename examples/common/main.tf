@@ -43,7 +43,7 @@ resource "clickhouse_role_grant" "my_role" {
 resource "clickhouse_view" "my_view" {
   database = clickhouse_table.my_table.database
   name     = "my_view"
-  query    = "select col1 as x from ${clickhouse_table.my_table.database}.${clickhouse_table.my_table.name}"
+  query    = "SELECT col1 AS x FROM ${clickhouse_table.my_table.database}.${clickhouse_table.my_table.name}"
 }
 
 resource "clickhouse_privilege_grant" "to_user" {
