@@ -1,0 +1,30 @@
+---
+name: Create database resource (HTTP protocol)
+input:
+  - name: terraform.tf # replace default provider.tf file with this file
+    content: |
+      terraform {
+        required_providers {
+          clickhouse = {
+            source  = "vegassor/clickhouse"
+          }
+        }
+      }
+
+      provider "clickhouse" {
+        username = "default"
+        password = "default"
+        host     = "localhost"
+        port     = 18123
+        protocol = "http"
+      }
+  - name: db.tf
+    content: |
+      resource "clickhouse_database" "my_db" {
+        name    = "my_db"
+        engine  = "Atomic"
+        comment = "Example DB"
+      }
+checks:
+  - query: select database, engine, comment from system.databases where database = 'my_db'
+    result: [['my_db', 'Atomic', 'Example DB']]

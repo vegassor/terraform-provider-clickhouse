@@ -10,5 +10,6 @@ provider "clickhouse" {
   username = "default"
   password = "default"
   host     = "localhost"
-  port     = 9000
+  port     = 8123
+  protocol = "http"
 }

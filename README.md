@@ -18,7 +18,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
     - [ ] Implement partial revoke support
   - [x] Grant role resource
   - [ ] Dictionary resource
-  - [ ] View resource
+  - [x] View resource
   - [ ] MatView resource
   - [ ] Complex table resources
     - [ ] MergeTree family
