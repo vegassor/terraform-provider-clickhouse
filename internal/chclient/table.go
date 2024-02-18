@@ -29,6 +29,7 @@ type ClickHouseTable struct {
 	Name     string
 	Columns  ClickHouseColumns
 	Engine   string
+	AsSelect string
 	Comment  string
 }
 
@@ -74,7 +75,7 @@ func (client *ClickHouseClient) CreateTable(ctx context.Context, table ClickHous
 
 func (client *ClickHouseClient) GetTable(ctx context.Context, database string, table string) (ClickHouseTable, error) {
 	query := fmt.Sprintf(
-		`SELECT "database", "name", "engine", "comment"
+		`SELECT "database", "name", "engine", "as_select", "comment"
 FROM "system"."tables"
 WHERE "database" = %s AND "name" = %s`,
 		QuoteValue(database),
@@ -99,11 +100,13 @@ WHERE "database" = %s AND "name" = %s`,
 	var dbReceived string
 	var nameReceived string
 	var engineReceived string
+	var asSelectReceived string
 	var commentReceived string
 	err = rows.Scan(
 		&dbReceived,
 		&nameReceived,
 		&engineReceived,
+		&asSelectReceived,
 		&commentReceived,
 	)
 	if err != nil {
@@ -136,6 +139,7 @@ order by "position"`,
 		Name:     nameReceived,
 		Engine:   engineReceived,
 		Comment:  commentReceived,
+		AsSelect: asSelectReceived,
 		Columns:  cols,
 	}, nil
 }
@@ -264,7 +268,27 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 	return nil
 }
 
-func (client *ClickHouseClient) DropTable(ctx context.Context, table ClickHouseTable) error {
+func (client *ClickHouseClient) DropTable(ctx context.Context, table ClickHouseTable, checkEmpty bool) error {
+	if checkEmpty {
+		empty, err := client.IsTableEmpty(ctx, table)
+		if err != nil {
+			return err
+		}
+		if !empty {
+			return &TableIsNotEmptyError{table}
+		}
+	}
+
+	query := fmt.Sprintf(
+		`DROP TABLE %s.%s`,
+		QuoteID(table.Database),
+		QuoteID(table.Name),
+	)
+	tflog.Info(ctx, "Dropping a table", dict{"query": query})
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) IsTableEmpty(ctx context.Context, table ClickHouseTable) (bool, error) {
 	query := fmt.Sprintf(
 		"select 1 from %s.%s limit 1",
 		QuoteID(table.Database),
@@ -273,17 +297,11 @@ func (client *ClickHouseClient) DropTable(ctx context.Context, table ClickHouseT
 	tflog.Info(ctx, "Checking if table is empty", dict{"query": query})
 	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if rows.Next() {
-		return &TableIsNotEmptyError{table}
+		return false, nil
 	}
 
-	query = fmt.Sprintf(
-		`DROP TABLE %s.%s`,
-		QuoteID(table.Database),
-		QuoteID(table.Name),
-	)
-	tflog.Info(ctx, "Dropping a table", dict{"query": query})
-	return client.Conn.Exec(ctx, query)
+	return true, nil
 }

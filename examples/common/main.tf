@@ -40,8 +40,14 @@ resource "clickhouse_role_grant" "my_role" {
   grantee = clickhouse_user.my_user.name
 }
 
+resource "clickhouse_view" "my_view" {
+  database = clickhouse_table.my_table.database
+  name     = "my_view"
+  query    = "SELECT col1 AS x FROM ${clickhouse_table.my_table.database}.${clickhouse_table.my_table.name}"
+}
+
 resource "clickhouse_privilege_grant" "to_user" {
-  grantee     = clickhouse_user.my_user.name
+  grantee     = clickhouse_role.my_role.name
   access_type = "SELECT"
 
   grants = [
@@ -51,8 +57,8 @@ resource "clickhouse_privilege_grant" "to_user" {
       columns  = ["col1", "col2"]
     },
     {
-      database = "default"
-      table    = "*"
+      database = clickhouse_view.my_view.database
+      table    = clickhouse_view.my_view.name
     },
   ]
 

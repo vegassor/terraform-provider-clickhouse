@@ -116,6 +116,7 @@ func (p *ClickHouseProvider) Resources(ctx context.Context) []func() resource.Re
 		NewRoleResource,
 		NewRoleGrantResource,
 		NewPrivilegeGrantResource,
+		NewViewResource,
 	}
 }
 
