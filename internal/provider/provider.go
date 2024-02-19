@@ -48,7 +48,7 @@ func (p *ClickHouseProvider) Schema(ctx context.Context, req provider.SchemaRequ
 			"protocol": schema.StringAttribute{
 				Optional:    true,
 				Description: "ClickHouse host for HTTP protocol",
-				Validators:  []validator.String{stringvalidator.OneOfCaseInsensitive("http", "tcp")},
+				Validators:  []validator.String{stringvalidator.OneOfCaseInsensitive("http", "native")},
 			},
 			"host": schema.StringAttribute{
 				Required:    true,
@@ -85,7 +85,7 @@ func (p *ClickHouseProvider) Configure(ctx context.Context, req provider.Configu
 	var protocol string
 
 	if data.Protocol.IsNull() {
-		protocol = "tcp"
+		protocol = "native"
 	} else {
 		protocol = strings.ToLower(data.Protocol.ValueString())
 	}

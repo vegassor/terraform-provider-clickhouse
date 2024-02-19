@@ -73,7 +73,7 @@ class ClickHouseTestInstallation:
             env=self._env,
         )
         if result.returncode != 0:
-            raise TfChException('ClickHouse initialization failed', result)
+            raise TfChException('ClickHouse clean-up failed', result)
 
     @cached_property
     def _client(self):

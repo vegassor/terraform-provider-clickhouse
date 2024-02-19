@@ -22,7 +22,7 @@ func NewClickHouseClient(connOpts *clickhouse.Options) (*ClickHouseClient, error
 		db := clickhouse.OpenDB(connOpts)
 		if db == nil {
 			return nil, fmt.Errorf("cannot connect to ClickHouse " +
-				"[HTTP protocol is exprimental, try native TCP protocol]")
+				"[HTTP protocol is experimental, try native TCP protocol]")
 		}
 		conn = &HttpConn{DB: db}
 	} else {

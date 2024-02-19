@@ -9,7 +9,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
 
 ## TODO
 - [ ] Provider
-  - [ ] Add HTTP (port 8123) configuration support
+  - [x] Add HTTP (port 8123) configuration support
 - [ ] Resources
   - [ ] Handle missing resources: do not fail if a resource does not exist, but set empty state
   - [x] Role resource

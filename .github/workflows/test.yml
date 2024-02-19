@@ -62,6 +62,9 @@ jobs:
       matrix:
         terraform:
           - '1.7.*'
+        clickhouse-protocol:
+          - 'native'
+          - 'http'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
@@ -88,4 +91,5 @@ jobs:
         timeout-minutes: 15
         env:
           TF_CLI_CONFIG_FILE: ${{ github.workspace }}/.terraformrc
+          TESTS_TF_CH_PROTOCOL: ${{ matrix.clickhouse-protocol }}
         run: make testsql
