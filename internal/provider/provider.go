@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -16,10 +19,8 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
-// Ensure ClickHouseProvider satisfies various provider interfaces.
 var _ provider.Provider = &ClickHouseProvider{}
 
-// ClickHouseProvider defines the provider implementation.
 type ClickHouseProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
@@ -33,6 +34,7 @@ type ClickHouseProviderModel struct {
 	Password types.String `tfsdk:"password"`
 	Host     types.String `tfsdk:"host"`
 	Port     types.Int64  `tfsdk:"port"`
+	Protocol types.String `tfsdk:"protocol"`
 }
 
 func (p *ClickHouseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -43,6 +45,11 @@ func (p *ClickHouseProvider) Metadata(ctx context.Context, req provider.Metadata
 func (p *ClickHouseProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"protocol": schema.StringAttribute{
+				Optional:    true,
+				Description: "ClickHouse host for HTTP protocol",
+				Validators:  []validator.String{stringvalidator.OneOfCaseInsensitive("http", "native")},
+			},
 			"host": schema.StringAttribute{
 				Required:    true,
 				Description: "ClickHouse host for HTTP protocol",
@@ -74,15 +81,33 @@ func (p *ClickHouseProvider) Configure(ctx context.Context, req provider.Configu
 	}
 
 	var addr string
-	if data.Port.IsNull() {
-		addr = fmt.Sprintf("%s:9000", data.Host.ValueString())
+	var port int64
+	var protocol string
+
+	if data.Protocol.IsNull() {
+		protocol = "native"
 	} else {
-		addr = fmt.Sprintf("%s:%d", data.Host.ValueString(), data.Port.ValueInt64())
+		protocol = strings.ToLower(data.Protocol.ValueString())
 	}
 
+	proto := clickhouse.Native
+	if protocol == "http" {
+		proto = clickhouse.HTTP
+	}
+
+	if data.Port.IsNull() {
+		if protocol == "http" {
+			port = 8123
+		} else {
+			port = 9000
+		}
+	} else {
+		port = data.Port.ValueInt64()
+	}
+	addr = fmt.Sprintf("%s:%d", data.Host.ValueString(), port)
+
 	client, err := chclient.NewClickHouseClient(&clickhouse.Options{
-		Protocol: clickhouse.Native,
-		Addr:     []string{addr},
+		Addr: []string{addr},
 		Auth: clickhouse.Auth{
 			Database: "default",
 			Username: data.Username.ValueString(),
@@ -95,12 +120,14 @@ func (p *ClickHouseProvider) Configure(ctx context.Context, req provider.Configu
 		Compression: &clickhouse.Compression{
 			Method: clickhouse.CompressionLZ4,
 		},
+		Protocol: proto,
 	})
 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot connect to ClickHouse",
-			"Cannot connect to ClickHouse: "+err.Error(),
+			"Cannot connect to ClickHouse: "+err.Error()+
+				"\naddr: "+addr,
 		)
 	}
 

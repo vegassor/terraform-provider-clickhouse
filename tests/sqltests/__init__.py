@@ -29,9 +29,18 @@ class YamlItem(pytest.Item):
 
     def runtest(self) -> None:
         source_dir = f'{os.path.dirname(__file__)}/fixtures/'
-        shutil.copytree(source_dir, self.cwd,  dirs_exist_ok=True)
+        ch_dir = f'{self.cwd}/clickhouse/'
+        shutil.copytree(f'{source_dir}/clickhouse/', ch_dir,  dirs_exist_ok=True)
 
-        with ClickHouseTestInstallation(f'{self.cwd}/clickhouse') as chi:
+        proto = os.environ.get('TESTS_TF_CH_PROTOCOL', 'native').lower()
+        if proto not in ['native', 'http']:
+            raise ValueError(f'Unknown protocol {proto}')
+        if proto == 'http':
+            shutil.copy(f'{source_dir}/provider-http.tf', f'{self.cwd}/provider.tf')
+        elif proto == 'native':
+            shutil.copy(f'{source_dir}/provider-native.tf', f'{self.cwd}/provider.tf')
+
+        with ClickHouseTestInstallation(ch_dir) as chi:
             tf = Terraform(self.cwd)
             tf.init()
 

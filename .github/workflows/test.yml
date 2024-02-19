@@ -53,7 +53,7 @@ jobs:
             (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
 
   test:
-    name: Terraform provider SQL tests (tf=${{ matrix.terraform }})
+    name: Terraform provider SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }})
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -62,6 +62,9 @@ jobs:
       matrix:
         terraform:
           - '1.7.*'
+        clickhouse-protocol:
+          - 'native'
+          - 'http'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
@@ -88,4 +91,5 @@ jobs:
         timeout-minutes: 15
         env:
           TF_CLI_CONFIG_FILE: ${{ github.workspace }}/.terraformrc
+          TESTS_TF_CH_PROTOCOL: ${{ matrix.clickhouse-protocol }}
         run: make testsql

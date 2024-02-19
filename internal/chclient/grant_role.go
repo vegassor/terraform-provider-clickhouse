@@ -32,7 +32,7 @@ func (client *ClickHouseClient) GrantRole(ctx context.Context, roleName, grantee
 func (client *ClickHouseClient) GetRoleGrant(ctx context.Context, roleName, grantee string) (RoleGrant, error) {
 	var roleGrant RoleGrant
 	query := fmt.Sprintf(
-		`SELECT "user_name", "role_name",
+		`SELECT coalesce("user_name", ''), coalesce("role_name", ''),
 "granted_role_name", "with_admin_option"
 FROM system.role_grants
 WHERE "user_name" = %s OR "role_name" = %s`,

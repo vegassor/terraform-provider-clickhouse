@@ -35,3 +35,4 @@ provider "clickhouse" {
 ### Optional
 
 - `port` (Number) ClickHouse port for HTTP protocol
+- `protocol` (String) ClickHouse host for HTTP protocol

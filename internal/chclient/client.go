@@ -13,13 +13,27 @@ type ClickHouseClient struct {
 }
 
 func NewClickHouseClient(connOpts *clickhouse.Options) (*ClickHouseClient, error) {
-	conn, err := clickhouse.Open(connOpts)
-
-	if err != nil {
-		return nil, err
+	if connOpts == nil {
+		return nil, fmt.Errorf("*clickhouse.Options cannot be nil")
 	}
 
-	err = conn.Ping(context.TODO())
+	var conn driver.Conn
+	if connOpts.Protocol == clickhouse.HTTP {
+		db := clickhouse.OpenDB(connOpts)
+		if db == nil {
+			return nil, fmt.Errorf("cannot connect to ClickHouse " +
+				"[HTTP protocol is experimental, try native TCP protocol]")
+		}
+		conn = &HttpConn{DB: db}
+	} else {
+		var err error
+		conn, err = clickhouse.Open(connOpts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err := conn.Ping(context.TODO())
 	if err != nil {
 		return nil, err
 	}
