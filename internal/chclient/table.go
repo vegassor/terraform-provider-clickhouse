@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/emirpasic/gods/v2/sets/hashset"
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
+	"time"
 )
 
 type ClickHouseColumn struct {
@@ -29,8 +31,40 @@ type ClickHouseTable struct {
 	Name     string
 	Columns  ClickHouseColumns
 	Engine   string
-	AsSelect string
 	Comment  string
+}
+
+type ClickHouseTableFullInfo struct {
+	Database                    string
+	Name                        string
+	UUID                        uuid.UUID
+	Comment                     string
+	Engine                      string
+	EngineFull                  string
+	IsTemporary                 bool
+	DataPaths                   []string
+	MetadataPath                string
+	MetadataModificationTime    time.Time
+	DependenciesDatabase        []string
+	DependenciesTable           []string
+	CreateTableQuery            string
+	AsSelect                    string
+	PartitionKey                string
+	SortingKey                  string
+	PrimaryKey                  string
+	SamplingKey                 string
+	StoragePolicy               string
+	TotalRows                   *uint64
+	TotalBytes                  *uint64
+	TotalBytesUncompressed      *uint64
+	LifetimeRows                *uint64
+	LifetimeBytes               *uint64
+	HasOwnData                  bool
+	LoadingDependenciesDatabase []string
+	LoadingDependenciesTable    []string
+	LoadingDependentDatabase    []string
+	LoadingDependentTable       []string
+	Columns                     ClickHouseColumns
 }
 
 func (col ClickHouseColumn) String() string {
@@ -73,9 +107,38 @@ func (client *ClickHouseClient) CreateTable(ctx context.Context, table ClickHous
 	return client.Conn.Exec(ctx, query)
 }
 
-func (client *ClickHouseClient) GetTable(ctx context.Context, database string, table string) (ClickHouseTable, error) {
+func (client *ClickHouseClient) GetTable(ctx context.Context, database string, table string) (ClickHouseTableFullInfo, error) {
 	query := fmt.Sprintf(
-		`SELECT "database", "name", "engine", "as_select", "comment"
+		`SELECT
+	"database",
+    "name",
+    "uuid",
+    "comment",
+    "engine",
+    "engine_full",
+    "is_temporary",
+    "data_paths",
+    "metadata_path",
+    "metadata_modification_time",
+    "dependencies_database",
+    "dependencies_table",
+    "create_table_query",
+    "as_select",
+    "partition_key",
+    "sorting_key",
+    "primary_key",
+    "sampling_key",
+    "storage_policy",
+    "total_rows",
+    "total_bytes",
+    "total_bytes_uncompressed",
+    "lifetime_rows",
+    "lifetime_bytes",
+    "has_own_data",
+    "loading_dependencies_database",
+    "loading_dependencies_table",
+    "loading_dependent_database",
+    "loading_dependent_table"
 FROM "system"."tables"
 WHERE "database" = %s AND "name" = %s`,
 		QuoteValue(database),
@@ -86,31 +149,55 @@ WHERE "database" = %s AND "name" = %s`,
 
 	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {
-		return ClickHouseTable{}, err
+		return ClickHouseTableFullInfo{}, err
 	}
 
 	if !rows.Next() {
-		return ClickHouseTable{}, &NotFoundError{
+		return ClickHouseTableFullInfo{}, &NotFoundError{
 			Entity: "table",
 			Name:   fmt.Sprintf("%s.%s", database, table),
 			Query:  query,
 		}
 	}
 
-	var dbReceived string
-	var nameReceived string
-	var engineReceived string
-	var asSelectReceived string
-	var commentReceived string
+	var tableInfo ClickHouseTableFullInfo
+	var hasOwnData, isTemporary uint8
 	err = rows.Scan(
-		&dbReceived,
-		&nameReceived,
-		&engineReceived,
-		&asSelectReceived,
-		&commentReceived,
+		&tableInfo.Database,
+		&tableInfo.Name,
+		&tableInfo.UUID,
+		&tableInfo.Comment,
+		&tableInfo.Engine,
+		&tableInfo.EngineFull,
+		&isTemporary,
+		&tableInfo.DataPaths,
+		&tableInfo.MetadataPath,
+		&tableInfo.MetadataModificationTime,
+		&tableInfo.DependenciesDatabase,
+		&tableInfo.DependenciesTable,
+		&tableInfo.CreateTableQuery,
+		&tableInfo.AsSelect,
+		&tableInfo.PartitionKey,
+		&tableInfo.SortingKey,
+		&tableInfo.PrimaryKey,
+		&tableInfo.SamplingKey,
+		&tableInfo.StoragePolicy,
+		&tableInfo.TotalRows,
+		&tableInfo.TotalBytes,
+		&tableInfo.TotalBytesUncompressed,
+		&tableInfo.LifetimeRows,
+		&tableInfo.LifetimeBytes,
+		&hasOwnData,
+		&tableInfo.LoadingDependenciesDatabase,
+		&tableInfo.LoadingDependenciesTable,
+		&tableInfo.LoadingDependentDatabase,
+		&tableInfo.LoadingDependentTable,
 	)
+	tableInfo.HasOwnData = hasOwnData == 1
+	tableInfo.IsTemporary = isTemporary == 1
+
 	if err != nil {
-		return ClickHouseTable{}, err
+		return ClickHouseTableFullInfo{}, err
 	}
 
 	query = fmt.Sprintf(
@@ -122,26 +209,18 @@ order by "position"`,
 	)
 	rows, err = client.Conn.Query(ctx, query)
 	if err != nil {
-		return ClickHouseTable{}, err
+		return ClickHouseTableFullInfo{}, err
 	}
-	var cols []ClickHouseColumn
 	for rows.Next() {
 		var col ClickHouseColumn
 		err := rows.Scan(&col.Name, &col.Type, &col.Comment)
 		if err != nil {
-			return ClickHouseTable{}, err
+			return ClickHouseTableFullInfo{}, err
 		}
-		cols = append(cols, col)
+		tableInfo.Columns = append(tableInfo.Columns, col)
 	}
 
-	return ClickHouseTable{
-		Database: dbReceived,
-		Name:     nameReceived,
-		Engine:   engineReceived,
-		Comment:  commentReceived,
-		AsSelect: asSelectReceived,
-		Columns:  cols,
-	}, nil
+	return tableInfo, nil
 }
 
 func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName string, desiredTable ClickHouseTable) error {
