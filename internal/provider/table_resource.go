@@ -283,7 +283,7 @@ func toChClientTable(table TableResourceModel) chclient.ClickHouseTable {
 	}
 }
 
-func fromChClientTable(table chclient.ClickHouseTable) TableResourceModel {
+func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceModel {
 	cols := make([]ColumnModel, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, ColumnModel{
