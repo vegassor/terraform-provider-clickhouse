@@ -78,16 +78,16 @@ resource "clickhouse_table" "my_merge_table" {
 
   columns = [
     {
-      name     = "time"
-      type     = "DateTime"
+      name = "time"
+      type = "DateTime"
     },
     {
-      name     = "id"
-      type     = "Int64"
+      name = "id"
+      type = "Int64"
     },
     {
-      name     = "id2"
-      type     = "Int64"
+      name = "id2"
+      type = "Int64"
     },
     {
       name = "value"
@@ -96,6 +96,6 @@ resource "clickhouse_table" "my_merge_table" {
   ]
 
   engine            = "ReplacingMergeTree"
-#  engine_parameters = ["time"]
+  engine_parameters = ["time"]
   order_by          = ["id", "id2"]
 }

@@ -222,7 +222,7 @@ WHERE "database" = %s AND "name" = %s`,
 		return ClickHouseTableFullInfo{}, err
 	}
 
-	re := regexp.MustCompile(`\((.*?)\)`)
+	re := regexp.MustCompile(`\S\((.*?)\)`)
 	matches := re.FindStringSubmatch(tableInfo.EngineFull)
 	if len(matches) > 1 {
 		tableInfo.EngineParams = strings.Split(matches[1], ", ")
