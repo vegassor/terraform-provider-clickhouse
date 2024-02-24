@@ -4,15 +4,19 @@ import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
+	"strings"
 )
 
 var _ resource.Resource = &TableResource{}
@@ -34,11 +38,13 @@ type ColumnModel struct {
 }
 
 type TableResourceModel struct {
-	Database string        `tfsdk:"database"`
-	Name     string        `tfsdk:"name"`
-	Engine   string        `tfsdk:"engine"`
-	Columns  []ColumnModel `tfsdk:"columns"`
-	Comment  string        `tfsdk:"comment"`
+	Database         string        `tfsdk:"database"`
+	Name             string        `tfsdk:"name"`
+	Engine           string        `tfsdk:"engine"`
+	Comment          string        `tfsdk:"comment"`
+	EngineParameters []string      `tfsdk:"engine_parameters"`
+	OrderBy          []string      `tfsdk:"order_by"`
+	Columns          []ColumnModel `tfsdk:"columns"`
 }
 
 func (r *TableResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -93,6 +99,20 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"StripeLog",
 					),
 				},
+			},
+			"engine_parameters": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Parameters for engine. Will be transformed to `engine(param1, param2, ...)`",
+				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
+			},
+			"order_by": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill ORDER BY clause.",
+				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
 			},
 			"columns": schema.ListNestedAttribute{
 				Required:            true,
@@ -293,11 +313,25 @@ func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceMode
 		})
 	}
 
+	engineParams := make([]string, 0)
+	re := regexp.MustCompile(`(\(.*?\))`)
+	matches := re.FindStringSubmatch(table.EngineFull)
+	if len(matches) > 0 {
+		engineParams = strings.Split(matches[0], ", ")
+	}
+
+	orderBy := make([]string, 0)
+	if table.SortingKey != "" {
+		orderBy = strings.Split(table.SortingKey, ", ")
+	}
+
 	return TableResourceModel{
-		Database: table.Database,
-		Name:     table.Name,
-		Engine:   table.Engine,
-		Comment:  table.Comment,
-		Columns:  cols,
+		Database:         table.Database,
+		Name:             table.Name,
+		Comment:          table.Comment,
+		Engine:           table.Engine,
+		EngineParameters: engineParams,
+		OrderBy:          orderBy,
+		Columns:          cols,
 	}
 }
