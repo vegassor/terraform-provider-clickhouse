@@ -58,3 +58,8 @@ func QuoteList(v []string, quote string) []string {
 
 	return result
 }
+
+func QuoteListWithTicksAndJoin(v []string) string {
+	result := QuoteList(v, "`")
+	return strings.Join(result, ", ")
+}

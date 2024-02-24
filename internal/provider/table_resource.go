@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -16,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
-	"strings"
 )
 
 var _ resource.Resource = &TableResource{}
@@ -99,6 +99,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"StripeLog",
 					),
 				},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"engine_parameters": schema.ListAttribute{
 				Optional:            true,
@@ -106,6 +107,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				ElementType:         types.StringType,
 				MarkdownDescription: "Parameters for engine. Will be transformed to `engine(param1, param2, ...)`",
 				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
+				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
 			},
 			"order_by": schema.ListAttribute{
 				Optional:            true,
@@ -113,6 +115,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				ElementType:         types.StringType,
 				MarkdownDescription: "Values to fill ORDER BY clause.",
 				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
+				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
 			},
 			"columns": schema.ListNestedAttribute{
 				Required:            true,
@@ -295,11 +298,13 @@ func toChClientTable(table TableResourceModel) chclient.ClickHouseTable {
 	}
 
 	return chclient.ClickHouseTable{
-		Database: table.Database,
-		Name:     table.Name,
-		Engine:   table.Engine,
-		Comment:  table.Comment,
-		Columns:  cols,
+		Database:     table.Database,
+		Name:         table.Name,
+		Comment:      table.Comment,
+		Engine:       table.Engine,
+		EngineParams: table.EngineParameters,
+		OrderBy:      table.OrderBy,
+		Columns:      cols,
 	}
 }
 
@@ -313,25 +318,13 @@ func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceMode
 		})
 	}
 
-	engineParams := make([]string, 0)
-	re := regexp.MustCompile(`(\(.*?\))`)
-	matches := re.FindStringSubmatch(table.EngineFull)
-	if len(matches) > 0 {
-		engineParams = strings.Split(matches[0], ", ")
-	}
-
-	orderBy := make([]string, 0)
-	if table.SortingKey != "" {
-		orderBy = strings.Split(table.SortingKey, ", ")
-	}
-
 	return TableResourceModel{
 		Database:         table.Database,
 		Name:             table.Name,
 		Comment:          table.Comment,
 		Engine:           table.Engine,
-		EngineParameters: engineParams,
-		OrderBy:          orderBy,
+		EngineParameters: table.EngineParams,
+		OrderBy:          table.OrderBy,
 		Columns:          cols,
 	}
 }

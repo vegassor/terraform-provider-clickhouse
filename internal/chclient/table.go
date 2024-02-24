@@ -6,6 +6,7 @@ import (
 	"github.com/emirpasic/gods/v2/sets/hashset"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -27,11 +28,13 @@ func (cols ClickHouseColumns) Names() []string {
 }
 
 type ClickHouseTable struct {
-	Database string
-	Name     string
-	Columns  ClickHouseColumns
-	Engine   string
-	Comment  string
+	Database     string
+	Name         string
+	Comment      string
+	Engine       string
+	EngineParams []string
+	OrderBy      []string
+	Columns      ClickHouseColumns
 }
 
 type ClickHouseTableFullInfo struct {
@@ -64,7 +67,22 @@ type ClickHouseTableFullInfo struct {
 	LoadingDependenciesTable    []string
 	LoadingDependentDatabase    []string
 	LoadingDependentTable       []string
-	Columns                     ClickHouseColumns
+
+	Columns      ClickHouseColumns
+	EngineParams []string
+	OrderBy      []string
+}
+
+func (info ClickHouseTableFullInfo) ToTable() ClickHouseTable {
+	return ClickHouseTable{
+		Database:     info.Database,
+		Name:         info.Name,
+		Comment:      info.Comment,
+		Engine:       info.Engine,
+		EngineParams: info.EngineParams,
+		OrderBy:      info.OrderBy,
+		Columns:      info.Columns,
+	}
 }
 
 func (col ClickHouseColumn) String() string {
@@ -86,18 +104,22 @@ func (client *ClickHouseClient) CreateTable(ctx context.Context, table ClickHous
 	for _, col := range table.Columns {
 		columnsStr = append(columnsStr, col.String())
 	}
-	columns := strings.Join(columnsStr, ",\n")
 
 	query := fmt.Sprintf(
 		`CREATE TABLE %s.%s
 (
 %s
-) ENGINE = %s()`,
+) ENGINE = %s(%s)`,
 		QuoteID(table.Database),
 		QuoteID(table.Name),
-		columns,
+		strings.Join(columnsStr, ",\n"),
 		QuoteID(table.Engine),
+		strings.Join(QuoteList(table.EngineParams, "`"), " "),
 	)
+	if len(table.OrderBy) > 0 {
+		query += " ORDER BY (" + strings.Join(QuoteList(table.OrderBy, "`"), ", ") + ")"
+	}
+
 	if table.Comment != "" {
 		query += " COMMENT " + QuoteValue(table.Comment)
 	}
@@ -200,50 +222,112 @@ WHERE "database" = %s AND "name" = %s`,
 		return ClickHouseTableFullInfo{}, err
 	}
 
-	query = fmt.Sprintf(
+	re := regexp.MustCompile(`\((.*?)\)`)
+	matches := re.FindStringSubmatch(tableInfo.EngineFull)
+	if len(matches) > 1 {
+		tableInfo.EngineParams = strings.Split(matches[1], ", ")
+	} else {
+		tableInfo.EngineParams = make([]string, 0)
+	}
+
+	if tableInfo.SortingKey != "" {
+		tableInfo.OrderBy = strings.Split(tableInfo.SortingKey, ", ")
+	} else {
+		tableInfo.OrderBy = make([]string, 0)
+	}
+
+	cols, err := client.GetColumns(ctx, database, table)
+	if err != nil {
+		return ClickHouseTableFullInfo{}, err
+	}
+	tableInfo.Columns = cols
+
+	return tableInfo, nil
+}
+
+func (client *ClickHouseClient) GetColumns(ctx context.Context, database, table string) (ClickHouseColumns, error) {
+	query := fmt.Sprintf(
 		`SELECT "name", "type", "comment" from "system"."columns"
 where database = %s and table = %s
 order by "position"`,
 		QuoteValue(database),
 		QuoteValue(table),
 	)
-	rows, err = client.Conn.Query(ctx, query)
+	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {
-		return ClickHouseTableFullInfo{}, err
+		return nil, err
 	}
+
+	var cols ClickHouseColumns
+
 	for rows.Next() {
 		var col ClickHouseColumn
 		err := rows.Scan(&col.Name, &col.Type, &col.Comment)
 		if err != nil {
-			return ClickHouseTableFullInfo{}, err
+			return nil, err
 		}
-		tableInfo.Columns = append(tableInfo.Columns, col)
+		cols = append(cols, col)
 	}
 
-	return tableInfo, nil
+	return cols, nil
 }
 
 func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName string, desiredTable ClickHouseTable) error {
-	currentTable, err := client.GetTable(ctx, desiredTable.Database, currentTableName)
+	err := client.RenameTable(ctx, desiredTable.Database, currentTableName, desiredTable.Name)
 	if err != nil {
 		return err
 	}
 
-	if currentTable.Name != desiredTable.Name {
-		query := fmt.Sprintf(
-			"RENAME TABLE %s.%s TO %s.%s",
-			QuoteID(desiredTable.Database),
-			QuoteID(currentTable.Name),
-			QuoteID(desiredTable.Database),
-			QuoteID(desiredTable.Name),
-		)
-		tflog.Info(ctx, "Renaming a table", dict{"query": query})
-		err := client.Conn.Exec(ctx, query)
+	currentTableInfo, err := client.GetTable(ctx, desiredTable.Database, desiredTable.Name)
+	if err != nil {
+		return err
+	}
+	currentTable := currentTableInfo.ToTable()
+
+	err = client.AlterColumns(ctx, currentTable, desiredTable)
+	if err != nil {
+		return err
+	}
+
+	if len(desiredTable.OrderBy) > 1 {
+		err = client.ModifyOrderBy(ctx, currentTable.Database, currentTable.Name, desiredTable.OrderBy)
 		if err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (client *ClickHouseClient) RenameTable(ctx context.Context, db, from, to string) error {
+	if from == to {
+		return nil
+	}
+	query := fmt.Sprintf(
+		"RENAME TABLE %s.%s TO %s.%s",
+		QuoteID(db),
+		QuoteID(from),
+		QuoteID(db),
+		QuoteID(to),
+	)
+	tflog.Info(ctx, "Renaming a table", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) ModifyOrderBy(ctx context.Context, db, table string, orderBy []string) error {
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s MODIFY ORDER BY (%s)",
+		QuoteID(db),
+		QuoteID(table),
+		QuoteListWithTicksAndJoin(orderBy),
+	)
+	tflog.Info(ctx, "Renaming a table", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
 	desiredColsSet := hashset.New[string](desiredTable.Columns.Names()...)
 	currentColsSet := hashset.New[string](currentTable.Columns.Names()...)
 	oldCols := currentColsSet.Intersection(desiredColsSet)

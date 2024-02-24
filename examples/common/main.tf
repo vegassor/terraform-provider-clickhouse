@@ -70,3 +70,32 @@ resource "clickhouse_privilege_grant" "to_user" {
   #   },
   # ]
 }
+
+resource "clickhouse_table" "my_merge_table" {
+  database = clickhouse_database.my_db.name
+  name     = "my_merge_table"
+  comment  = "Some comment"
+
+  columns = [
+    {
+      name     = "time"
+      type     = "DateTime"
+    },
+    {
+      name     = "id"
+      type     = "Int64"
+    },
+    {
+      name     = "id2"
+      type     = "Int64"
+    },
+    {
+      name = "value"
+      type = "Float64"
+    }
+  ]
+
+  engine            = "ReplacingMergeTree"
+#  engine_parameters = ["time"]
+  order_by          = ["id", "id2"]
+}
