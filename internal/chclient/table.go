@@ -351,12 +351,12 @@ func (client *ClickHouseClient) ModifyOrderBy(ctx context.Context, db, table str
 
 func (client *ClickHouseClient) AlterTableSettings(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
 	desiredSettingsSet := hashset.New[string]()
-	for k, _ := range desiredTable.Settings {
+	for k := range desiredTable.Settings {
 		desiredSettingsSet.Add(k)
 	}
 
 	currentSettingsSet := hashset.New[string]()
-	for k, _ := range currentTable.Settings {
+	for k := range currentTable.Settings {
 		currentSettingsSet.Add(k)
 	}
 
