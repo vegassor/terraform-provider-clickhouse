@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -234,12 +233,13 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	table, err := toChClientTable(ctx, resp.Diagnostics, tableModel)
-	if err != nil {
+	table, diags := toChClientTable(ctx, tableModel)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	err = r.client.CreateTable(ctx, table)
+	err := r.client.CreateTable(ctx, table)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot create table",
@@ -255,19 +255,24 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		)
 		return
 	}
+	createdTableModel, diags := fromChClientTableInfo(ctx, createdTableInfo)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, fromChClientTable(createdTableInfo))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, createdTableModel)...)
 }
 
 func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var table TableResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &table)...)
+	var stateTableModel TableResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateTableModel)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	receivedTable, err := r.client.GetTable(ctx, table.Database, table.Name)
+	receivedTableInfo, err := r.client.GetTable(ctx, stateTableModel.Database, stateTableModel.Name)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot find table",
@@ -276,7 +281,11 @@ func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	table = fromChClientTable(receivedTable)
+	table, diags := fromChClientTableInfo(ctx, receivedTableInfo)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, table)...)
 }
 
@@ -299,11 +308,13 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	table, err := toChClientTable(ctx, resp.Diagnostics, planTable)
-	if err != nil {
+	table, diags := toChClientTable(ctx, planTable)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
 		return
 	}
-	err = r.client.AlterTable(ctx, stateTable.Name, table)
+	err := r.client.AlterTable(ctx, stateTable.Name, table)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot alter table",
@@ -322,12 +333,13 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	table, err := toChClientTable(ctx, resp.Diagnostics, model)
-	if err != nil {
+	table, diags := toChClientTable(ctx, model)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	err = r.client.DropTable(ctx, table, true)
+	err := r.client.DropTable(ctx, table, true)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot delete table",
@@ -340,7 +352,9 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 func (r *TableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 }
 
-func toChClientTable(ctx context.Context, diags diag.Diagnostics, table TableResourceModel) (chclient.ClickHouseTable, error) {
+func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.ClickHouseTable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
 	cols := make([]chclient.ClickHouseColumn, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, chclient.ClickHouseColumn{
@@ -357,9 +371,6 @@ func toChClientTable(ctx context.Context, diags diag.Diagnostics, table TableRes
 		val, ds := table.PrimaryKey.ToListValue(ctx)
 		diags.Append(ds...)
 		diags.Append(val.ElementsAs(ctx, &pk, true)...)
-		if diags.HasError() {
-			return chclient.ClickHouseTable{}, errors.New("cannot convert primary key to string list")
-		}
 	}
 
 	return chclient.ClickHouseTable{
@@ -373,10 +384,11 @@ func toChClientTable(ctx context.Context, diags diag.Diagnostics, table TableRes
 		PrimaryKeyArr: pk,
 		Settings:      table.Settings,
 		Columns:       cols,
-	}, nil
+	}, diags
 }
 
-func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceModel {
+func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFullInfo) (TableResourceModel, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	cols := make([]ColumnModel, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, ColumnModel{
@@ -386,7 +398,8 @@ func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceMode
 		})
 	}
 
-	pk, _ := basetypes.NewListValueFrom(context.TODO(), types.StringType, table.PrimaryKeyArr)
+	pk, ds := basetypes.NewListValueFrom(ctx, types.StringType, table.PrimaryKeyArr)
+	diags.Append(ds...)
 
 	return TableResourceModel{
 		Database:         table.Database,
@@ -399,5 +412,5 @@ func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceMode
 		PrimaryKey:       pk,
 		Settings:         table.Settings,
 		Columns:          cols,
-	}
+	}, diags
 }
