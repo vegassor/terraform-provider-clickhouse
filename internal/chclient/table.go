@@ -126,6 +126,10 @@ func (client *ClickHouseClient) CreateTable(ctx context.Context, table ClickHous
 		query += " ORDER BY (" + strings.Join(QuoteList(table.OrderBy, "`"), ", ") + ")"
 	}
 
+	if len(table.Settings) > 0 {
+		query += " SETTINGS " + QuoteMapAndJoin(table.Settings)
+	}
+
 	if table.Comment != "" {
 		query += " COMMENT " + QuoteValue(table.Comment)
 	}

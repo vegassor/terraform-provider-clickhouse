@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -49,10 +49,10 @@ type TableResourceModel struct {
 	Engine           string   `tfsdk:"engine"`
 	EngineParameters []string `tfsdk:"engine_parameters"`
 
-	PartitionBy []string          `tfsdk:"partition_by"`
-	OrderBy     []string          `tfsdk:"order_by"`
-	PrimaryKey  types.List        `tfsdk:"primary_key"`
-	Settings    map[string]string `tfsdk:"settings"`
+	PartitionBy []string   `tfsdk:"partition_by"`
+	OrderBy     []string   `tfsdk:"order_by"`
+	PrimaryKey  types.List `tfsdk:"primary_key"`
+	Settings    types.Map  `tfsdk:"settings"`
 
 	Comment string `tfsdk:"comment"`
 }
@@ -150,7 +150,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Computed:            true,
 				ElementType:         types.StringType,
 				MarkdownDescription: "Values to fill SETTINGS clause.",
-				Default:             mapdefault.StaticValue(types.MapValueMust(types.StringType, make(map[string]attr.Value))),
+				PlanModifiers:       []planmodifier.Map{mapplanmodifier.UseStateForUnknown()},
 			},
 			"columns": schema.ListNestedAttribute{
 				Required:            true,
@@ -365,12 +365,17 @@ func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.Cl
 	}
 
 	var pk []string
-	if table.PrimaryKey.IsUnknown() {
-		table.PrimaryKey = types.ListValueMust(types.StringType, make([]attr.Value, 0))
-	} else {
+	if !table.PrimaryKey.IsUnknown() {
 		val, ds := table.PrimaryKey.ToListValue(ctx)
 		diags.Append(ds...)
 		diags.Append(val.ElementsAs(ctx, &pk, true)...)
+	}
+
+	var settings map[string]string
+	if !table.Settings.IsUnknown() {
+		val, ds := table.Settings.ToMapValue(ctx)
+		diags.Append(ds...)
+		diags.Append(val.ElementsAs(ctx, &settings, false)...)
 	}
 
 	return chclient.ClickHouseTable{
@@ -382,7 +387,7 @@ func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.Cl
 		PartitionBy:   table.PartitionBy,
 		OrderBy:       table.OrderBy,
 		PrimaryKeyArr: pk,
-		Settings:      table.Settings,
+		Settings:      settings,
 		Columns:       cols,
 	}, diags
 }
@@ -401,6 +406,9 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 	pk, ds := basetypes.NewListValueFrom(ctx, types.StringType, table.PrimaryKeyArr)
 	diags.Append(ds...)
 
+	settings, ds := basetypes.NewMapValueFrom(ctx, types.StringType, table.Settings)
+	diags.Append(ds...)
+
 	return TableResourceModel{
 		Database:         table.Database,
 		Name:             table.Name,
@@ -410,7 +418,7 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 		PartitionBy:      table.PartitionBy,
 		OrderBy:          table.OrderBy,
 		PrimaryKey:       pk,
-		Settings:         table.Settings,
+		Settings:         settings,
 		Columns:          cols,
 	}, diags
 }
