@@ -2,19 +2,23 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
 )
@@ -38,13 +42,20 @@ type ColumnModel struct {
 }
 
 type TableResourceModel struct {
-	Database         string        `tfsdk:"database"`
-	Name             string        `tfsdk:"name"`
-	Engine           string        `tfsdk:"engine"`
-	Comment          string        `tfsdk:"comment"`
-	EngineParameters []string      `tfsdk:"engine_parameters"`
-	OrderBy          []string      `tfsdk:"order_by"`
-	Columns          []ColumnModel `tfsdk:"columns"`
+	Database string `tfsdk:"database"`
+	Name     string `tfsdk:"name"`
+
+	Columns []ColumnModel `tfsdk:"columns"`
+
+	Engine           string   `tfsdk:"engine"`
+	EngineParameters []string `tfsdk:"engine_parameters"`
+
+	PartitionBy []string          `tfsdk:"partition_by"`
+	OrderBy     []string          `tfsdk:"order_by"`
+	PrimaryKey  types.List        `tfsdk:"primary_key"`
+	Settings    map[string]string `tfsdk:"settings"`
+
+	Comment string `tfsdk:"comment"`
 }
 
 func (r *TableResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -109,6 +120,14 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
 				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
 			},
+			"partition_by": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill PARTITION BY clause.",
+				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
+				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
+			},
 			"order_by": schema.ListAttribute{
 				Optional:            true,
 				Computed:            true,
@@ -116,6 +135,23 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "Values to fill ORDER BY clause.",
 				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
 				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
+			},
+			"primary_key": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill PRIMARY KEY clause.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+					listplanmodifier.RequiresReplace(),
+				},
+			},
+			"settings": schema.MapAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill SETTINGS clause.",
+				Default:             mapdefault.StaticValue(types.MapValueMust(types.StringType, make(map[string]attr.Value))),
 			},
 			"columns": schema.ListNestedAttribute{
 				Required:            true,
@@ -198,9 +234,12 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	table := toChClientTable(tableModel)
+	table, err := toChClientTable(ctx, resp.Diagnostics, tableModel)
+	if err != nil {
+		return
+	}
 
-	err := r.client.CreateTable(ctx, table)
+	err = r.client.CreateTable(ctx, table)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot create table",
@@ -208,8 +247,16 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		)
 		return
 	}
+	createdTableInfo, err := r.client.GetTable(ctx, table.Database, table.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot read table info",
+			"Create table query failed: "+err.Error(),
+		)
+		return
+	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, tableModel)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, fromChClientTable(createdTableInfo))...)
 }
 
 func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -252,8 +299,11 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	table := toChClientTable(planTable)
-	err := r.client.AlterTable(ctx, stateTable.Name, table)
+	table, err := toChClientTable(ctx, resp.Diagnostics, planTable)
+	if err != nil {
+		return
+	}
+	err = r.client.AlterTable(ctx, stateTable.Name, table)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot alter table",
@@ -272,9 +322,12 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	table := toChClientTable(model)
+	table, err := toChClientTable(ctx, resp.Diagnostics, model)
+	if err != nil {
+		return
+	}
 
-	err := r.client.DropTable(ctx, table, true)
+	err = r.client.DropTable(ctx, table, true)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot delete table",
@@ -287,7 +340,7 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 func (r *TableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 }
 
-func toChClientTable(table TableResourceModel) chclient.ClickHouseTable {
+func toChClientTable(ctx context.Context, diags diag.Diagnostics, table TableResourceModel) (chclient.ClickHouseTable, error) {
 	cols := make([]chclient.ClickHouseColumn, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, chclient.ClickHouseColumn{
@@ -297,15 +350,30 @@ func toChClientTable(table TableResourceModel) chclient.ClickHouseTable {
 		})
 	}
 
-	return chclient.ClickHouseTable{
-		Database:     table.Database,
-		Name:         table.Name,
-		Comment:      table.Comment,
-		Engine:       table.Engine,
-		EngineParams: table.EngineParameters,
-		OrderBy:      table.OrderBy,
-		Columns:      cols,
+	var pk []string
+	if table.PrimaryKey.IsUnknown() {
+		table.PrimaryKey = types.ListValueMust(types.StringType, make([]attr.Value, 0))
+	} else {
+		val, ds := table.PrimaryKey.ToListValue(ctx)
+		diags.Append(ds...)
+		diags.Append(val.ElementsAs(ctx, &pk, true)...)
+		if diags.HasError() {
+			return chclient.ClickHouseTable{}, errors.New("cannot convert primary key to string list")
+		}
 	}
+
+	return chclient.ClickHouseTable{
+		Database:      table.Database,
+		Name:          table.Name,
+		Comment:       table.Comment,
+		Engine:        table.Engine,
+		EngineParams:  table.EngineParameters,
+		PartitionBy:   table.PartitionBy,
+		OrderBy:       table.OrderBy,
+		PrimaryKeyArr: pk,
+		Settings:      table.Settings,
+		Columns:       cols,
+	}, nil
 }
 
 func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceModel {
@@ -318,13 +386,18 @@ func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceMode
 		})
 	}
 
+	pk, _ := basetypes.NewListValueFrom(context.TODO(), types.StringType, table.PrimaryKeyArr)
+
 	return TableResourceModel{
 		Database:         table.Database,
 		Name:             table.Name,
 		Comment:          table.Comment,
 		Engine:           table.Engine,
 		EngineParameters: table.EngineParams,
+		PartitionBy:      table.PartitionBy,
 		OrderBy:          table.OrderBy,
+		PrimaryKey:       pk,
+		Settings:         table.Settings,
 		Columns:          cols,
 	}
 }

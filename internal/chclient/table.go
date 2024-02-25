@@ -6,7 +6,6 @@ import (
 	"github.com/emirpasic/gods/v2/sets/hashset"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -28,13 +27,16 @@ func (cols ClickHouseColumns) Names() []string {
 }
 
 type ClickHouseTable struct {
-	Database     string
-	Name         string
-	Comment      string
-	Engine       string
-	EngineParams []string
-	OrderBy      []string
-	Columns      ClickHouseColumns
+	Database      string
+	Name          string
+	Comment       string
+	Engine        string
+	EngineParams  []string
+	PartitionBy   []string
+	OrderBy       []string
+	PrimaryKeyArr []string
+	Settings      map[string]string
+	Columns       ClickHouseColumns
 }
 
 type ClickHouseTableFullInfo struct {
@@ -68,9 +70,12 @@ type ClickHouseTableFullInfo struct {
 	LoadingDependentDatabase    []string
 	LoadingDependentTable       []string
 
-	Columns      ClickHouseColumns
-	EngineParams []string
-	OrderBy      []string
+	Columns       ClickHouseColumns
+	EngineParams  []string
+	PartitionBy   []string
+	OrderBy       []string
+	PrimaryKeyArr []string
+	Settings      map[string]string
 }
 
 func (info ClickHouseTableFullInfo) ToTable() ClickHouseTable {
@@ -81,6 +86,7 @@ func (info ClickHouseTableFullInfo) ToTable() ClickHouseTable {
 		Engine:       info.Engine,
 		EngineParams: info.EngineParams,
 		OrderBy:      info.OrderBy,
+		Settings:     info.Settings,
 		Columns:      info.Columns,
 	}
 }
@@ -222,12 +228,10 @@ WHERE "database" = %s AND "name" = %s`,
 		return ClickHouseTableFullInfo{}, err
 	}
 
-	re := regexp.MustCompile(`\S\((.*?)\)`)
-	matches := re.FindStringSubmatch(tableInfo.EngineFull)
-	if len(matches) > 1 {
-		tableInfo.EngineParams = strings.Split(matches[1], ", ")
+	if tableInfo.PartitionKey != "" {
+		tableInfo.PartitionBy = strings.Split(tableInfo.PartitionKey, ", ")
 	} else {
-		tableInfo.EngineParams = make([]string, 0)
+		tableInfo.PartitionBy = make([]string, 0)
 	}
 
 	if tableInfo.SortingKey != "" {
@@ -235,6 +239,15 @@ WHERE "database" = %s AND "name" = %s`,
 	} else {
 		tableInfo.OrderBy = make([]string, 0)
 	}
+
+	if tableInfo.PrimaryKey != "" {
+		tableInfo.PrimaryKeyArr = strings.Split(tableInfo.PrimaryKey, ", ")
+	} else {
+		tableInfo.PrimaryKeyArr = make([]string, 0)
+	}
+
+	tableInfo.Settings = MustParseSettings(tableInfo.EngineFull)
+	tableInfo.EngineParams = MustParseEngineParams(tableInfo.EngineFull)
 
 	cols, err := client.GetColumns(ctx, database, table)
 	if err != nil {

@@ -98,4 +98,9 @@ resource "clickhouse_table" "my_merge_table" {
   engine            = "ReplacingMergeTree"
   engine_parameters = ["time"]
   order_by          = ["id", "id2"]
+
+  settings = {
+    index_granularity        = "8192"
+#    max_part_loading_threads = "8"
+  }
 }
