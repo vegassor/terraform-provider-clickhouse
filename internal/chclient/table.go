@@ -306,6 +306,11 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 		return err
 	}
 
+	err = client.AlterTableSettings(ctx, currentTable, desiredTable)
+	if err != nil {
+		return err
+	}
+
 	if len(desiredTable.OrderBy) > 1 {
 		err = client.ModifyOrderBy(ctx, currentTable.Database, currentTable.Name, desiredTable.OrderBy)
 		if err != nil {
@@ -340,6 +345,58 @@ func (client *ClickHouseClient) ModifyOrderBy(ctx context.Context, db, table str
 		QuoteListWithTicksAndJoin(orderBy),
 	)
 	tflog.Info(ctx, "Renaming a table", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) AlterTableSettings(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
+	desiredSettingsSet := hashset.New[string]()
+	for k, _ := range desiredTable.Settings {
+		desiredSettingsSet.Add(k)
+	}
+
+	currentSettingsSet := hashset.New[string]()
+	for k, _ := range currentTable.Settings {
+		currentSettingsSet.Add(k)
+	}
+
+	err := client.ModifyTableSettings(ctx, desiredTable.Database, desiredTable.Name, desiredTable.Settings)
+	if err != nil {
+		return err
+	}
+
+	resetSettings := currentSettingsSet.Difference(desiredSettingsSet)
+	return client.ResetTableSettings(ctx, desiredTable.Database, desiredTable.Name, resetSettings.Values()...)
+}
+
+func (client *ClickHouseClient) ModifyTableSettings(ctx context.Context, db, table string, settings map[string]string) error {
+	if len(settings) == 0 {
+		return nil
+	}
+
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s MODIFY SETTING %s",
+		QuoteID(db),
+		QuoteID(table),
+		QuoteMapAndJoin(settings),
+	)
+	tflog.Info(ctx, "Modifying table settings", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) ResetTableSettings(ctx context.Context, db, table string, settingsNames ...string) error {
+	if len(settingsNames) == 0 {
+		return nil
+	}
+
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s RESET SETTING %s",
+		QuoteID(db),
+		QuoteID(table),
+		QuoteListWithTicksAndJoin(settingsNames),
+	)
+	tflog.Info(ctx, "Resetting table settings", dict{"query": query})
 
 	return client.Conn.Exec(ctx, query)
 }
