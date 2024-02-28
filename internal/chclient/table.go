@@ -32,7 +32,7 @@ type ClickHouseTable struct {
 	Comment       string
 	Engine        string
 	EngineParams  []string
-	PartitionBy   []string
+	PartitionBy   string
 	OrderBy       []string
 	PrimaryKeyArr []string
 	Settings      map[string]string
@@ -72,7 +72,7 @@ type ClickHouseTableFullInfo struct {
 
 	Columns       ClickHouseColumns
 	EngineParams  []string
-	PartitionBy   []string
+	PartitionBy   string
 	OrderBy       []string
 	PrimaryKeyArr []string
 	Settings      map[string]string
@@ -122,12 +122,16 @@ func (client *ClickHouseClient) CreateTable(ctx context.Context, table ClickHous
 		QuoteID(table.Engine),
 		strings.Join(QuoteList(table.EngineParams, "`"), " "),
 	)
+	if table.PartitionBy != "" {
+		query += " PARTITION BY " + table.PartitionBy + " "
+	}
+
 	if len(table.OrderBy) > 0 {
-		query += " ORDER BY (" + strings.Join(QuoteList(table.OrderBy, "`"), ", ") + ")"
+		query += " ORDER BY (" + QuoteListWithTicksAndJoin(table.OrderBy) + ")"
 	}
 
 	if len(table.PrimaryKeyArr) > 0 {
-		query += " PRIMARY KEY (" + strings.Join(QuoteList(table.PrimaryKeyArr, "`"), ", ") + ")"
+		query += " PRIMARY KEY (" + QuoteListWithTicksAndJoin(table.PrimaryKeyArr) + ")"
 	}
 
 	if len(table.Settings) > 0 {
@@ -236,11 +240,7 @@ WHERE "database" = %s AND "name" = %s`,
 		return ClickHouseTableFullInfo{}, err
 	}
 
-	if tableInfo.PartitionKey != "" {
-		tableInfo.PartitionBy = strings.Split(tableInfo.PartitionKey, ", ")
-	} else {
-		tableInfo.PartitionBy = make([]string, 0)
-	}
+	tableInfo.PartitionBy = tableInfo.PartitionKey
 
 	if tableInfo.SortingKey != "" {
 		tableInfo.OrderBy = strings.Split(tableInfo.SortingKey, ", ")

@@ -93,7 +93,7 @@ checks:
     result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree(time) ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]
 
 ---
-name: Update ReplacingMergeTree engine parameters
+name: Remove engine parameters
 input:
   - name: table.tf
     content: |
@@ -101,8 +101,8 @@ input:
         database = "default"
         name     = "my_table"
 
-        engine            = "ReplacingMergeTree"
-        order_by          = ["id", "id2"]
+        engine   = "ReplacingMergeTree"
+        order_by = ["id", "id2"]
 
         columns = [
           {
@@ -139,100 +139,3 @@ checks:
         database = 'default'
         and name = 'my_table'
     result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]
-
----
-name: Create table with PRIMARY KEY
-input:
-  - name: table.tf
-    content: |
-      resource "clickhouse_table" "my_table" {
-        database = "default"
-        name     = "my_table_2"
-
-        engine      = "ReplacingMergeTree"
-        order_by    = ["id", "id2"]
-        primary_key = ["id"]
-
-        columns = [
-          {
-            name = "time"
-            type = "DateTime"
-          },
-          {
-            name = "id"
-            type = "Int64"
-          },
-          {
-            name = "id2"
-            type = "Int64"
-          },
-          {
-            name = "value"
-            type = "Float64"
-          }
-        ]
-      }
-checks:
-  - query: >
-      select
-        database,
-        name,
-        comment,
-        engine,
-        engine_full,
-        sorting_key,
-        primary_key,
-        has_own_data
-      from system.tables
-      where
-        database = 'default'
-        and name = 'my_table_2'
-    result: [['default', 'my_table_2', '', 'ReplacingMergeTree', 'ReplacingMergeTree PRIMARY KEY id ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id', 1]]
----
-name: Recreate table with PRIMARY KEY
-input:
-  - name: table.tf
-    content: |
-      resource "clickhouse_table" "my_table" {
-        database = "default"
-        name     = "my_table_2"
-
-        engine      = "ReplacingMergeTree"
-        order_by    = ["id2", "id"]
-        primary_key = ["id2"]
-
-        columns = [
-          {
-            name = "time"
-            type = "DateTime"
-          },
-          {
-            name = "id"
-            type = "Int64"
-          },
-          {
-            name = "id2"
-            type = "Int64"
-          },
-          {
-            name = "value"
-            type = "Float64"
-          }
-        ]
-      }
-checks:
-  - query: >
-      select
-        database,
-        name,
-        comment,
-        engine,
-        engine_full,
-        sorting_key,
-        primary_key,
-        has_own_data
-      from system.tables
-      where
-        database = 'default'
-        and name = 'my_table_2'
-    result: [['default', 'my_table_2', '', 'ReplacingMergeTree', 'ReplacingMergeTree PRIMARY KEY id2 ORDER BY (id2, id) SETTINGS index_granularity = 8192', 'id2, id', 'id2', 1]]

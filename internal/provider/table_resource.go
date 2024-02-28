@@ -46,10 +46,10 @@ type TableResourceModel struct {
 
 	Columns []ColumnModel `tfsdk:"columns"`
 
-	Engine           string   `tfsdk:"engine"`
-	EngineParameters []string `tfsdk:"engine_parameters"`
+	Engine           string     `tfsdk:"engine"`
+	EngineParameters types.List `tfsdk:"engine_parameters"`
 
-	PartitionBy []string   `tfsdk:"partition_by"`
+	PartitionBy string     `tfsdk:"partition_by"`
 	OrderBy     []string   `tfsdk:"order_by"`
 	PrimaryKey  types.List `tfsdk:"primary_key"`
 	Settings    types.Map  `tfsdk:"settings"`
@@ -117,15 +117,14 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				ElementType:         types.StringType,
 				MarkdownDescription: "Parameters for engine. Will be transformed to `engine(param1, param2, ...)`",
 				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
-				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
+				PlanModifiers:       []planmodifier.List{partitionByPlanModifier{}, listplanmodifier.RequiresReplace()},
 			},
-			"partition_by": schema.ListAttribute{
+			"partition_by": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				ElementType:         types.StringType,
 				MarkdownDescription: "Values to fill PARTITION BY clause.",
-				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
-				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"order_by": schema.ListAttribute{
 				Optional:            true,
@@ -323,7 +322,22 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, planTable)...)
+	updatedTableInfo, err := r.client.GetTable(ctx, table.Database, table.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot read table info",
+			"Update table query failed: "+err.Error(),
+		)
+		return
+	}
+
+	updatedTableModel, diags := fromChClientTableInfo(ctx, updatedTableInfo)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, updatedTableModel)...)
 }
 
 func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -371,6 +385,15 @@ func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.Cl
 		diags.Append(val.ElementsAs(ctx, &pk, true)...)
 	}
 
+	var engineParams []string
+	if !table.EngineParameters.IsUnknown() {
+		val, ds := table.EngineParameters.ToListValue(ctx)
+		diags.Append(ds...)
+		diags.Append(val.ElementsAs(ctx, &engineParams, true)...)
+	} else {
+		engineParams = make([]string, 0)
+	}
+
 	var settings map[string]string
 	if !table.Settings.IsUnknown() {
 		val, ds := table.Settings.ToMapValue(ctx)
@@ -383,7 +406,7 @@ func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.Cl
 		Name:          table.Name,
 		Comment:       table.Comment,
 		Engine:        table.Engine,
-		EngineParams:  table.EngineParameters,
+		EngineParams:  engineParams,
 		PartitionBy:   table.PartitionBy,
 		OrderBy:       table.OrderBy,
 		PrimaryKeyArr: pk,
@@ -406,6 +429,9 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 	pk, ds := basetypes.NewListValueFrom(ctx, types.StringType, table.PrimaryKeyArr)
 	diags.Append(ds...)
 
+	engineParams, ds := basetypes.NewListValueFrom(ctx, types.StringType, table.EngineParams)
+	diags.Append(ds...)
+
 	settings, ds := basetypes.NewMapValueFrom(ctx, types.StringType, table.Settings)
 	diags.Append(ds...)
 
@@ -414,7 +440,7 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 		Name:             table.Name,
 		Comment:          table.Comment,
 		Engine:           table.Engine,
-		EngineParameters: table.EngineParams,
+		EngineParameters: engineParams,
 		PartitionBy:      table.PartitionBy,
 		OrderBy:          table.OrderBy,
 		PrimaryKey:       pk,
