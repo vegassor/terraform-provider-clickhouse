@@ -4,6 +4,7 @@ resource "clickhouse_table" "my_table" {
 
   engine   = "ReplacingMergeTree"
   order_by = ["id", "id2"]
+  primary_key = ["id"]
 
   columns = [
     {
