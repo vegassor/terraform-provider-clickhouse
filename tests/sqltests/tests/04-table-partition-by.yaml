@@ -45,4 +45,108 @@ checks:
       where
         database = 'default'
         and name = 'my_table'
-    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree(time) ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]
+    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree(time) PARTITION BY toYYYYMM(time) ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]
+
+---
+name: Create explicitly state engine params
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+
+        engine            = "ReplacingMergeTree"
+        engine_parameters = ["time"]
+
+        order_by     = ["id", "id2"]
+        partition_by = "toYYYYMM(time)"
+
+        columns = [
+          {
+            name = "time"
+            type = "DateTime"
+          },
+          {
+            name = "id"
+            type = "Int64"
+          },
+          {
+            name = "id2"
+            type = "Int64"
+          },
+          {
+            name = "value"
+            type = "Float64"
+          }
+        ]
+
+        lifecycle {
+          prevent_destroy = true
+        }
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        comment,
+        engine,
+        engine_full,
+        sorting_key,
+        primary_key,
+        has_own_data
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree(time) PARTITION BY toYYYYMM(time) ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]
+
+---
+name: Recreate table due to change in partition
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+
+        engine       = "ReplacingMergeTree"
+        order_by     = ["id", "id2"]
+        partition_by = "time"
+
+        columns = [
+          {
+            name = "time"
+            type = "DateTime"
+          },
+          {
+            name = "id"
+            type = "Int64"
+          },
+          {
+            name = "id2"
+            type = "Int64"
+          },
+          {
+            name = "value"
+            type = "Float64"
+          }
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        comment,
+        engine,
+        engine_full,
+        sorting_key,
+        primary_key,
+        has_own_data
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree(time) PARTITION BY time ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]

@@ -19,10 +19,6 @@ func (m partitionByPlanModifier) MarkdownDescription(_ context.Context) string {
 }
 
 func (m partitionByPlanModifier) PlanModifyList(ctx context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
-	if req.State.Raw.IsNull() {
-		return
-	}
-
 	if req.Plan.Raw.IsNull() {
 		return
 	}

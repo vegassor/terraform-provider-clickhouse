@@ -122,7 +122,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"partition_by": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Values to fill PARTITION BY clause.",
+				MarkdownDescription: "Expression to fill PARTITION BY clause.",
 				Default:             stringdefault.StaticString(""),
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
