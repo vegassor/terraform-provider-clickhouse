@@ -25,8 +25,8 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
     - [ ] RabbitMQ table
   - [ ] Implement import
   - [x] Table
-    - [ ] Add support for `settings` block
-    - [ ] Add `full_name` output as a computed field, equal to `db_name.table_name`
+    - [x] Add support for `settings` block
+    - [x] Add `full_name` output as a computed field, equal to `db_name.table_name`
 - [ ] Add datasources
 - [ ] Tests
   - [ ] Acceptance tests

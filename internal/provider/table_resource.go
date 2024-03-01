@@ -41,8 +41,9 @@ type ColumnModel struct {
 }
 
 type TableResourceModel struct {
-	Database string `tfsdk:"database"`
-	Name     string `tfsdk:"name"`
+	Database string       `tfsdk:"database"`
+	Name     string       `tfsdk:"name"`
+	FullName types.String `tfsdk:"full_name"`
 
 	Columns []ColumnModel `tfsdk:"columns"`
 
@@ -80,6 +81,10 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"Table name should contain only lower case latin letters, digits and _",
 					),
 				},
+			},
+			"full_name": schema.StringAttribute{
+				MarkdownDescription: "ClickHouse table name in `database.table` format",
+				Computed:            true,
 			},
 			"comment": schema.StringAttribute{
 				MarkdownDescription: "Comment for the table",
@@ -438,6 +443,7 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 	return TableResourceModel{
 		Database:         table.Database,
 		Name:             table.Name,
+		FullName:         types.StringValue(table.Database + "." + table.Name),
 		Comment:          table.Comment,
 		Engine:           table.Engine,
 		EngineParameters: engineParams,

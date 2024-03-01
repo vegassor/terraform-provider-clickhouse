@@ -58,6 +58,10 @@ resource "clickhouse_table" "my_table" {
 - `primary_key` (List of String) Values to fill PRIMARY KEY clause.
 - `settings` (Map of String) Values to fill SETTINGS clause.
 
+### Read-Only
+
+- `full_name` (String) ClickHouse table name in `database.table` format
+
 <a id="nestedatt--columns"></a>
 ### Nested Schema for `columns`
 
