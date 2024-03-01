@@ -60,3 +60,32 @@ func (m partitionByPlanModifier) PlanModifyList(ctx context.Context, req planmod
 
 	resp.PlanValue = val
 }
+
+type fullNamePlanModifier struct{}
+
+func (m fullNamePlanModifier) Description(_ context.Context) string {
+	return "Constructs full_name from database and table name."
+}
+
+func (m fullNamePlanModifier) MarkdownDescription(_ context.Context) string {
+	return "Constructs `full_name` from `database` and table's `name`."
+}
+
+func (m fullNamePlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// Do nothing if there is an unknown configuration value, otherwise interpolation gets messed up.
+	if req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	var tableModel TableResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &tableModel)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if tableModel.Database == "" || tableModel.Name == "" {
+		return
+	}
+
+	resp.PlanValue = types.StringValue(tableModel.Database + "." + tableModel.Name)
+}

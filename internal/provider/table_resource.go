@@ -85,7 +85,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"full_name": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse table name in `database.table` format",
 				Computed:            true,
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				PlanModifiers:       []planmodifier.String{fullNamePlanModifier{}},
 			},
 			"comment": schema.StringAttribute{
 				MarkdownDescription: "Comment for the table",
