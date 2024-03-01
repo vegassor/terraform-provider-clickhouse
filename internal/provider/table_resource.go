@@ -4,13 +4,20 @@ import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
 )
@@ -34,11 +41,21 @@ type ColumnModel struct {
 }
 
 type TableResourceModel struct {
-	Database string        `tfsdk:"database"`
-	Name     string        `tfsdk:"name"`
-	Engine   string        `tfsdk:"engine"`
-	Columns  []ColumnModel `tfsdk:"columns"`
-	Comment  string        `tfsdk:"comment"`
+	Database string       `tfsdk:"database"`
+	Name     string       `tfsdk:"name"`
+	FullName types.String `tfsdk:"full_name"`
+
+	Columns []ColumnModel `tfsdk:"columns"`
+
+	Engine           string     `tfsdk:"engine"`
+	EngineParameters types.List `tfsdk:"engine_parameters"`
+
+	PartitionBy string     `tfsdk:"partition_by"`
+	OrderBy     []string   `tfsdk:"order_by"`
+	PrimaryKey  types.List `tfsdk:"primary_key"`
+	Settings    types.Map  `tfsdk:"settings"`
+
+	Comment string `tfsdk:"comment"`
 }
 
 func (r *TableResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -64,6 +81,11 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"Table name should contain only lower case latin letters, digits and _",
 					),
 				},
+			},
+			"full_name": schema.StringAttribute{
+				MarkdownDescription: "ClickHouse table name in `database.table` format",
+				Computed:            true,
+				PlanModifiers:       []planmodifier.String{fullNamePlanModifier{}},
 			},
 			"comment": schema.StringAttribute{
 				MarkdownDescription: "Comment for the table",
@@ -93,6 +115,47 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"StripeLog",
 					),
 				},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+			},
+			"engine_parameters": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Parameters for engine. Will be transformed to `engine(param1, param2, ...)`",
+				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
+				PlanModifiers:       []planmodifier.List{partitionByPlanModifier{}, listplanmodifier.RequiresReplace()},
+			},
+			"partition_by": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Expression to fill PARTITION BY clause.",
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
+			},
+			"order_by": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill ORDER BY clause.",
+				Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, make([]attr.Value, 0))),
+				PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace()},
+			},
+			"primary_key": schema.ListAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill PRIMARY KEY clause.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+					listplanmodifier.RequiresReplace(),
+				},
+			},
+			"settings": schema.MapAttribute{
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				MarkdownDescription: "Values to fill SETTINGS clause.",
+				PlanModifiers:       []planmodifier.Map{mapplanmodifier.UseStateForUnknown()},
 			},
 			"columns": schema.ListNestedAttribute{
 				Required:            true,
@@ -175,7 +238,11 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	table := toChClientTable(tableModel)
+	table, diags := toChClientTable(ctx, tableModel)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	err := r.client.CreateTable(ctx, table)
 	if err != nil {
@@ -185,19 +252,32 @@ func (r *TableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		)
 		return
 	}
+	createdTableInfo, err := r.client.GetTable(ctx, table.Database, table.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot read table info",
+			"Create table query failed: "+err.Error(),
+		)
+		return
+	}
+	createdTableModel, diags := fromChClientTableInfo(ctx, createdTableInfo)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, tableModel)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, createdTableModel)...)
 }
 
 func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var table TableResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &table)...)
+	var stateTableModel TableResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateTableModel)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	receivedTable, err := r.client.GetTable(ctx, table.Database, table.Name)
+	receivedTableInfo, err := r.client.GetTable(ctx, stateTableModel.Database, stateTableModel.Name)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot find table",
@@ -206,7 +286,11 @@ func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	table = fromChClientTable(receivedTable)
+	table, diags := fromChClientTableInfo(ctx, receivedTableInfo)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, table)...)
 }
 
@@ -229,7 +313,12 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	table := toChClientTable(planTable)
+	table, diags := toChClientTable(ctx, planTable)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	err := r.client.AlterTable(ctx, stateTable.Name, table)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -239,7 +328,22 @@ func (r *TableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, planTable)...)
+	updatedTableInfo, err := r.client.GetTable(ctx, table.Database, table.Name)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot read table info",
+			"Update table query failed: "+err.Error(),
+		)
+		return
+	}
+
+	updatedTableModel, diags := fromChClientTableInfo(ctx, updatedTableInfo)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, updatedTableModel)...)
 }
 
 func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -249,7 +353,11 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	table := toChClientTable(model)
+	table, diags := toChClientTable(ctx, model)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	err := r.client.DropTable(ctx, table, true)
 	if err != nil {
@@ -264,40 +372,88 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 func (r *TableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 }
 
-func toChClientTable(table TableResourceModel) chclient.ClickHouseTable {
+func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.ClickHouseTable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
 	cols := make([]chclient.ClickHouseColumn, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, chclient.ClickHouseColumn{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
+			Name:     col.Name,
+			Type:     col.Type,
+			Comment:  col.Comment,
+			Nullable: col.Nullable,
 		})
+	}
+
+	var pk []string
+	if !table.PrimaryKey.IsUnknown() {
+		val, ds := table.PrimaryKey.ToListValue(ctx)
+		diags.Append(ds...)
+		diags.Append(val.ElementsAs(ctx, &pk, true)...)
+	}
+
+	var engineParams []string
+	if !table.EngineParameters.IsUnknown() {
+		val, ds := table.EngineParameters.ToListValue(ctx)
+		diags.Append(ds...)
+		diags.Append(val.ElementsAs(ctx, &engineParams, true)...)
+	} else {
+		engineParams = make([]string, 0)
+	}
+
+	var settings map[string]string
+	if !table.Settings.IsUnknown() {
+		val, ds := table.Settings.ToMapValue(ctx)
+		diags.Append(ds...)
+		diags.Append(val.ElementsAs(ctx, &settings, false)...)
 	}
 
 	return chclient.ClickHouseTable{
-		Database: table.Database,
-		Name:     table.Name,
-		Engine:   table.Engine,
-		Comment:  table.Comment,
-		Columns:  cols,
-	}
+		Database:      table.Database,
+		Name:          table.Name,
+		Comment:       table.Comment,
+		Engine:        table.Engine,
+		EngineParams:  engineParams,
+		PartitionBy:   table.PartitionBy,
+		OrderBy:       table.OrderBy,
+		PrimaryKeyArr: pk,
+		Settings:      settings,
+		Columns:       cols,
+	}, diags
 }
 
-func fromChClientTable(table chclient.ClickHouseTableFullInfo) TableResourceModel {
+func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFullInfo) (TableResourceModel, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	cols := make([]ColumnModel, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, ColumnModel{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
+			Name:     col.Name,
+			Type:     col.Type,
+			Comment:  col.Comment,
+			Nullable: col.Nullable,
 		})
 	}
 
+	pk, ds := basetypes.NewListValueFrom(ctx, types.StringType, table.PrimaryKeyArr)
+	diags.Append(ds...)
+
+	engineParams, ds := basetypes.NewListValueFrom(ctx, types.StringType, table.EngineParams)
+	diags.Append(ds...)
+
+	settings, ds := basetypes.NewMapValueFrom(ctx, types.StringType, table.Settings)
+	diags.Append(ds...)
+
 	return TableResourceModel{
-		Database: table.Database,
-		Name:     table.Name,
-		Engine:   table.Engine,
-		Comment:  table.Comment,
-		Columns:  cols,
-	}
+		Database:         table.Database,
+		Name:             table.Name,
+		FullName:         types.StringValue(table.Database + "." + table.Name),
+		Comment:          table.Comment,
+		Engine:           table.Engine,
+		EngineParameters: engineParams,
+		PartitionBy:      table.PartitionBy,
+		OrderBy:          table.OrderBy,
+		PrimaryKey:       pk,
+		Settings:         settings,
+		Columns:          cols,
+	}, diags
 }

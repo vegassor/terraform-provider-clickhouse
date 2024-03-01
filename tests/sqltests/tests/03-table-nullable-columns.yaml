@@ -1,0 +1,228 @@
+---
+name: Create table with nullable column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+          },
+          {
+            name     = "col2"
+            type     = "Float64"
+            nullable = true
+          }
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', '']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', '']
+      - ['default', 'my_table', 'col2', 'Nullable(Float64)', 2, '', '', '']
+
+---
+name: Add nullable column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+          },
+          {
+            name     = "col2"
+            type     = "Float64"
+            nullable = true
+          },
+          {
+            name     = "col3"
+            type     = "Float64"
+            nullable = true
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', '']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', '']
+      - ['default', 'my_table', 'col2', 'Nullable(Float64)', 2, '', '', '']
+      - ['default', 'my_table', 'col3', 'Nullable(Float64)', 3, '', '', '']
+
+---
+name: Change nullable to non-nullable column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+          },
+          {
+            name     = "col2"
+            type     = "Float64"
+            nullable = true
+          },
+          {
+            name     = "col3"
+            type     = "Float64"
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', '']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', '']
+      - ['default', 'my_table', 'col2', 'Nullable(Float64)', 2, '', '', '']
+      - ['default', 'my_table', 'col3', 'Float64', 3, '', '', '']
+
+---
+name: Change non-nullable to nullable column
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+        engine   = "Memory"
+
+        columns = [
+          {
+            name     = "col1"
+            type     = "String"
+          },
+          {
+            name     = "col2"
+            type     = "Float64"
+            nullable = true
+          },
+          {
+            name     = "col3"
+            type     = "Float64"
+            nullable = true
+          },
+        ]
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        engine,
+        comment
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', 'Memory', '']]
+  - query: >
+      select
+          database,
+          table,
+          name,
+          type,
+          position,
+          default_kind,
+          default_expression,
+          comment
+      from system.columns
+      where
+          database = 'default'
+          and table = 'my_table'
+      order by position
+    result:
+      - ['default', 'my_table', 'col1', 'String', 1, '', '', '']
+      - ['default', 'my_table', 'col2', 'Nullable(Float64)', 2, '', '', '']
+      - ['default', 'my_table', 'col3', 'Nullable(Float64)', 3, '', '', '']

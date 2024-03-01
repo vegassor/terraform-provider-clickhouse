@@ -1,0 +1,191 @@
+---
+name: Create ReplacingMergeTree table with settings
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+
+        engine            = "ReplacingMergeTree"
+        order_by          = ["id", "id2"]
+
+        columns = [
+          {
+            name     = "time"
+            type     = "DateTime"
+          },
+          {
+            name     = "id"
+            type     = "Int64"
+          },
+          {
+            name     = "id2"
+            type     = "Int64"
+          },
+          {
+            name = "value"
+            type = "Float64"
+          }
+        ]
+
+        settings = {
+          index_granularity        = "8192"
+          max_part_loading_threads = "8"
+        }
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        comment,
+        engine,
+        sorting_key,
+        primary_key,
+        has_own_data
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'id, id2', 'id, id2', 1]]
+  - query: >
+      select
+          countMatches(engine_full, 'index_granularity = ''8192'''),
+          countMatches(engine_full, 'max_part_loading_threads = ''8''')
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [[1, 1]]
+
+---
+name: Reset setting to default
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+
+        engine            = "ReplacingMergeTree"
+        order_by          = ["id", "id2"]
+
+        columns = [
+          {
+            name     = "time"
+            type     = "DateTime"
+          },
+          {
+            name     = "id"
+            type     = "Int64"
+          },
+          {
+            name     = "id2"
+            type     = "Int64"
+          },
+          {
+            name = "value"
+            type = "Float64"
+          }
+        ]
+
+        settings = {
+          index_granularity           = "8192"
+        }
+
+        lifecycle {
+          prevent_destroy = true
+        }
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        comment,
+        engine,
+        sorting_key,
+        primary_key,
+        has_own_data
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'id, id2', 'id, id2', 1]]
+  - query: >
+      select
+          countMatches(engine_full, 'index_granularity = ''8192'''),
+          countMatches(engine_full, 'max_part_loading_threads = '),
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [[1, 0]]
+
+---
+name: Add settings
+input:
+  - name: table.tf
+    content: |
+      resource "clickhouse_table" "my_table" {
+        database = "default"
+        name     = "my_table"
+
+        engine            = "ReplacingMergeTree"
+        order_by          = ["id", "id2"]
+
+        columns = [
+          {
+            name     = "time"
+            type     = "DateTime"
+          },
+          {
+            name     = "id"
+            type     = "Int64"
+          },
+          {
+            name     = "id2"
+            type     = "Int64"
+          },
+          {
+            name = "value"
+            type = "Float64"
+          }
+        ]
+
+        settings = {
+          index_granularity           = "8192"
+          max_part_loading_threads    = "8"
+          max_suspicious_broken_parts = "500"
+        }
+
+        lifecycle {
+          prevent_destroy = true
+        }
+      }
+checks:
+  - query: >
+      select
+        database,
+        name,
+        comment,
+        engine,
+        sorting_key,
+        primary_key,
+        has_own_data
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [['default', 'my_table', '', 'ReplacingMergeTree', 'id, id2', 'id, id2', 1]]
+  - query: >
+      select
+          countMatches(engine_full, 'index_granularity = ''8192'''),
+          countMatches(engine_full, 'max_part_loading_threads = ''8'''),
+          countMatches(engine_full, 'max_suspicious_broken_parts = ''500''')
+      from system.tables
+      where
+        database = 'default'
+        and name = 'my_table'
+    result: [[1, 1, 1]]

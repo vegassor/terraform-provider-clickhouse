@@ -52,6 +52,15 @@ resource "clickhouse_table" "my_table" {
 ### Optional
 
 - `comment` (String) Comment for the table
+- `engine_parameters` (List of String) Parameters for engine. Will be transformed to `engine(param1, param2, ...)`
+- `order_by` (List of String) Values to fill ORDER BY clause.
+- `partition_by` (String) Expression to fill PARTITION BY clause.
+- `primary_key` (List of String) Values to fill PRIMARY KEY clause.
+- `settings` (Map of String) Values to fill SETTINGS clause.
+
+### Read-Only
+
+- `full_name` (String) ClickHouse table name in `database.table` format
 
 <a id="nestedatt--columns"></a>
 ### Nested Schema for `columns`
