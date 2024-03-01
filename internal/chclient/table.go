@@ -11,9 +11,10 @@ import (
 )
 
 type ClickHouseColumn struct {
-	Name    string
-	Type    string
-	Comment string
+	Name     string
+	Type     string
+	Comment  string
+	Nullable bool
 }
 
 type ClickHouseColumns []ClickHouseColumn
@@ -97,6 +98,10 @@ func (col ClickHouseColumn) String() string {
 		QuoteWithTicks(col.Name),
 		QuoteID(col.Type),
 	)
+
+	if col.Nullable {
+		result += " NULL"
+	}
 
 	if col.Comment != "" {
 		result += " COMMENT " + QuoteValue(col.Comment)
@@ -287,6 +292,13 @@ order by "position"`,
 		if err != nil {
 			return nil, err
 		}
+
+		if strings.Contains(col.Type, "Nullable") {
+			col.Nullable = true
+			col.Type = strings.ReplaceAll(col.Type, "Nullable(", "")
+			col.Type = strings.ReplaceAll(col.Type, ")", "")
+		}
+
 		cols = append(cols, col)
 	}
 
@@ -424,8 +436,8 @@ func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, 
 	if !oldCols.Contains(currentColsSet.Values()...) {
 		return &NotSupportedError{
 			Operation: "renaming or removing columns",
-			Detail: fmt.Sprintf("cannot update columns of table %s.%s:"+
-				"desired config does not contain columns from previous config."+
+			Detail: fmt.Sprintf("cannot update columns of table %s.%s: "+
+				"desired config does not contain columns from previous config. "+
 				"If you did not try to rename or delete columns, it is a bug in the Client",
 				desiredTable.Database,
 				desiredTable.Name,
@@ -434,12 +446,16 @@ func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, 
 	}
 
 	for _, colName := range newCols.Values() {
+		colType := desiredColsMap[colName].Type
+		if desiredColsMap[colName].Nullable {
+			colType = "Nullable(" + colType + ")"
+		}
 		query := fmt.Sprintf(
 			`ALTER TABLE %s.%s ADD COLUMN %s %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
 			QuoteID(desiredTable.Name),
 			QuoteID(colName),
-			QuoteID(desiredColsMap[colName].Type),
+			colType,
 			QuoteValue(desiredColsMap[colName].Comment),
 		)
 		tflog.Info(ctx, "Adding a column", dict{"query": query})
@@ -454,11 +470,15 @@ func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, 
 			continue
 		}
 
+		colType := col.Type
+		if col.Nullable {
+			colType = "Nullable(" + colType + ")"
+		}
 		query := fmt.Sprintf(`ALTER TABLE %s.%s ALTER COLUMN %s TYPE %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
 			QuoteID(desiredTable.Name),
 			QuoteID(col.Name),
-			QuoteID(col.Type),
+			colType,
 			QuoteValue(col.Comment),
 		)
 		tflog.Info(ctx, "Changing a column", dict{"query": query})
@@ -476,7 +496,10 @@ func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, 
 				continue
 			}
 		}
-
+		colType := desiredCol.Type
+		if desiredCol.Nullable {
+			colType = "Nullable(" + colType + ")"
+		}
 		desiredIdx := i
 		var query string
 
@@ -486,7 +509,7 @@ func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, 
 				QuoteID(desiredTable.Database),
 				QuoteID(desiredTable.Name),
 				QuoteID(desiredCol.Name),
-				QuoteID(desiredCol.Type),
+				colType,
 			)
 		} else {
 			prevColName := desiredTable.Columns[desiredIdx-1].Name
@@ -495,7 +518,7 @@ func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, 
 				QuoteID(desiredTable.Database),
 				QuoteID(desiredTable.Name),
 				QuoteID(desiredCol.Name),
-				QuoteID(desiredCol.Type),
+				colType,
 				QuoteID(prevColName),
 			)
 		}

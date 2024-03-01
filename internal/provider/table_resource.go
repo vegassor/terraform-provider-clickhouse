@@ -85,6 +85,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"full_name": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse table name in `database.table` format",
 				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"comment": schema.StringAttribute{
 				MarkdownDescription: "Comment for the table",
@@ -377,9 +378,10 @@ func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.Cl
 	cols := make([]chclient.ClickHouseColumn, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, chclient.ClickHouseColumn{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
+			Name:     col.Name,
+			Type:     col.Type,
+			Comment:  col.Comment,
+			Nullable: col.Nullable,
 		})
 	}
 
@@ -425,9 +427,10 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 	cols := make([]ColumnModel, 0, len(table.Columns))
 	for _, col := range table.Columns {
 		cols = append(cols, ColumnModel{
-			Name:    col.Name,
-			Type:    col.Type,
-			Comment: col.Comment,
+			Name:     col.Name,
+			Type:     col.Type,
+			Comment:  col.Comment,
+			Nullable: col.Nullable,
 		})
 	}
 

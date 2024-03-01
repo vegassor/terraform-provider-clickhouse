@@ -1,28 +1,22 @@
 resource "clickhouse_table" "my_table" {
   database = "default"
   name     = "my_table"
-
-  engine = "ReplacingMergeTree"
-  #  engine_parameters = ["time"]
-  partition_by = "toYYYYMM(time)"
-  order_by     = ["id", "id2"]
+  engine   = "Memory"
 
   columns = [
     {
-      name = "time"
-      type = "DateTime"
+      name = "col1"
+      type = "String"
     },
     {
-      name = "id"
-      type = "Int64"
+      name     = "col2"
+      type     = "Float64"
+      nullable = true
     },
     {
-      name = "id2"
-      type = "Int64"
+      name     = "col3"
+      type     = "Float64"
+      nullable = true
     },
-    {
-      name = "value"
-      type = "Float64"
-    }
   ]
 }
