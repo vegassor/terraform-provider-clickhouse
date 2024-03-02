@@ -24,12 +24,13 @@ class UUIDEncoder(json.JSONEncoder):
 
 
 class ClickHouseTestInstallation:
-    def __init__(self, cwd):
+    def __init__(self, cwd: str, version: str = '23.12'):
         self.cwd = cwd
         self._env = {
             **os.environ,
             'CLICKHOUSE_LOCAL_PORT_HTTP': '18123',
             'CLICKHOUSE_LOCAL_PORT_NATIVE': '19000',
+            'CLICKHOUSE_VERSION': version,
             'COMPOSE_PROJECT_NAME': f'tfch-{generate_random_string(8)}',
         }
 

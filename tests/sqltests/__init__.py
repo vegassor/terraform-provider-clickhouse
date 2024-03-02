@@ -40,7 +40,9 @@ class YamlItem(pytest.Item):
         elif proto == 'native':
             shutil.copy(f'{source_dir}/provider-native.tf', f'{self.cwd}/provider.tf')
 
-        with ClickHouseTestInstallation(ch_dir) as chi:
+        ch_version = os.environ.get('TESTS_TF_CH_CLICKHOUSE_VERSION', '23.12').lower()
+
+        with ClickHouseTestInstallation(ch_dir, version=ch_version) as chi:
             tf = Terraform(self.cwd)
             tf.init()
 

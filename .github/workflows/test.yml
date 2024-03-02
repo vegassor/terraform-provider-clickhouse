@@ -53,10 +53,11 @@ jobs:
             (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
 
   test:
-    name: Terraform provider SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }})
+    name: >
+      Terraform provider SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }},ch=${{ matrix.clickhouse-version }})
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +66,10 @@ jobs:
         clickhouse-protocol:
           - 'native'
           - 'http'
+        clickhouse-version:
+          - '23.12'
+          - '24.1'
+          - '24.2'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
@@ -87,9 +92,12 @@ jobs:
           make init-config
           make build
           pip install -r tests/requirements.txt
+      - name: Pull ClickHouse Docker image
+        run: docker pull clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
       - name: Run SQL tests
         timeout-minutes: 15
         env:
           TF_CLI_CONFIG_FILE: ${{ github.workspace }}/.terraformrc
           TESTS_TF_CH_PROTOCOL: ${{ matrix.clickhouse-protocol }}
+          TESTS_TF_CH_CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
         run: make testsql
