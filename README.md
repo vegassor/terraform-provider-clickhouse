@@ -30,7 +30,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
 - [ ] Add datasources
 - [ ] Tests
   - [ ] Acceptance tests
-  - [ ] Test more ClickHouse versions
+  - [x] Test more ClickHouse versions
   - [ ] Run SQL tests in parallel
 - [ ] Release
   - [ ] Configure GitHub Actions to publish the provider to the Terraform Registry

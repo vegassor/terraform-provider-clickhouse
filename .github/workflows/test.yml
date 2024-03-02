@@ -53,8 +53,7 @@ jobs:
             (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
 
   test:
-    name: >
-      Terraform provider SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }},ch=${{ matrix.clickhouse-version }})
+    name: Terraform provider SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }},ch=${{ matrix.clickhouse-version }})
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
