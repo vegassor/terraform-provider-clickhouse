@@ -11,9 +11,10 @@ import (
 )
 
 type ClickHouseColumn struct {
-	Name    string
-	Type    string
-	Comment string
+	Name     string
+	Type     string
+	Comment  string
+	Nullable bool
 }
 
 type ClickHouseColumns []ClickHouseColumn
@@ -27,11 +28,16 @@ func (cols ClickHouseColumns) Names() []string {
 }
 
 type ClickHouseTable struct {
-	Database string
-	Name     string
-	Columns  ClickHouseColumns
-	Engine   string
-	Comment  string
+	Database      string
+	Name          string
+	Comment       string
+	Engine        string
+	EngineParams  []string
+	PartitionBy   string
+	OrderBy       []string
+	PrimaryKeyArr []string
+	Settings      map[string]string
+	Columns       ClickHouseColumns
 }
 
 type ClickHouseTableFullInfo struct {
@@ -64,7 +70,26 @@ type ClickHouseTableFullInfo struct {
 	LoadingDependenciesTable    []string
 	LoadingDependentDatabase    []string
 	LoadingDependentTable       []string
-	Columns                     ClickHouseColumns
+
+	Columns       ClickHouseColumns
+	EngineParams  []string
+	PartitionBy   string
+	OrderBy       []string
+	PrimaryKeyArr []string
+	Settings      map[string]string
+}
+
+func (info ClickHouseTableFullInfo) ToTable() ClickHouseTable {
+	return ClickHouseTable{
+		Database:     info.Database,
+		Name:         info.Name,
+		Comment:      info.Comment,
+		Engine:       info.Engine,
+		EngineParams: info.EngineParams,
+		OrderBy:      info.OrderBy,
+		Settings:     info.Settings,
+		Columns:      info.Columns,
+	}
 }
 
 func (col ClickHouseColumn) String() string {
@@ -73,6 +98,10 @@ func (col ClickHouseColumn) String() string {
 		QuoteWithTicks(col.Name),
 		QuoteID(col.Type),
 	)
+
+	if col.Nullable {
+		result += " NULL"
+	}
 
 	if col.Comment != "" {
 		result += " COMMENT " + QuoteValue(col.Comment)
@@ -86,18 +115,34 @@ func (client *ClickHouseClient) CreateTable(ctx context.Context, table ClickHous
 	for _, col := range table.Columns {
 		columnsStr = append(columnsStr, col.String())
 	}
-	columns := strings.Join(columnsStr, ",\n")
 
 	query := fmt.Sprintf(
 		`CREATE TABLE %s.%s
 (
 %s
-) ENGINE = %s()`,
+) ENGINE = %s(%s)`,
 		QuoteID(table.Database),
 		QuoteID(table.Name),
-		columns,
+		strings.Join(columnsStr, ",\n"),
 		QuoteID(table.Engine),
+		strings.Join(QuoteList(table.EngineParams, "`"), " "),
 	)
+	if table.PartitionBy != "" {
+		query += " PARTITION BY " + table.PartitionBy + " "
+	}
+
+	if len(table.OrderBy) > 0 {
+		query += " ORDER BY (" + QuoteListWithTicksAndJoin(table.OrderBy) + ")"
+	}
+
+	if len(table.PrimaryKeyArr) > 0 {
+		query += " PRIMARY KEY (" + QuoteListWithTicksAndJoin(table.PrimaryKeyArr) + ")"
+	}
+
+	if len(table.Settings) > 0 {
+		query += " SETTINGS " + QuoteMapAndJoin(table.Settings)
+	}
+
 	if table.Comment != "" {
 		query += " COMMENT " + QuoteValue(table.Comment)
 	}
@@ -200,50 +245,179 @@ WHERE "database" = %s AND "name" = %s`,
 		return ClickHouseTableFullInfo{}, err
 	}
 
-	query = fmt.Sprintf(
+	tableInfo.PartitionBy = tableInfo.PartitionKey
+
+	if tableInfo.SortingKey != "" {
+		tableInfo.OrderBy = strings.Split(tableInfo.SortingKey, ", ")
+	} else {
+		tableInfo.OrderBy = make([]string, 0)
+	}
+
+	if tableInfo.PrimaryKey != "" {
+		tableInfo.PrimaryKeyArr = strings.Split(tableInfo.PrimaryKey, ", ")
+	} else {
+		tableInfo.PrimaryKeyArr = make([]string, 0)
+	}
+
+	tableInfo.Settings = MustParseSettings(tableInfo.EngineFull)
+	tableInfo.EngineParams = MustParseEngineParams(tableInfo.EngineFull)
+
+	cols, err := client.GetColumns(ctx, database, table)
+	if err != nil {
+		return ClickHouseTableFullInfo{}, err
+	}
+	tableInfo.Columns = cols
+
+	return tableInfo, nil
+}
+
+func (client *ClickHouseClient) GetColumns(ctx context.Context, database, table string) (ClickHouseColumns, error) {
+	query := fmt.Sprintf(
 		`SELECT "name", "type", "comment" from "system"."columns"
 where database = %s and table = %s
 order by "position"`,
 		QuoteValue(database),
 		QuoteValue(table),
 	)
-	rows, err = client.Conn.Query(ctx, query)
+	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {
-		return ClickHouseTableFullInfo{}, err
+		return nil, err
 	}
+
+	var cols ClickHouseColumns
+
 	for rows.Next() {
 		var col ClickHouseColumn
 		err := rows.Scan(&col.Name, &col.Type, &col.Comment)
 		if err != nil {
-			return ClickHouseTableFullInfo{}, err
+			return nil, err
 		}
-		tableInfo.Columns = append(tableInfo.Columns, col)
+
+		if strings.Contains(col.Type, "Nullable") {
+			col.Nullable = true
+			col.Type = strings.ReplaceAll(col.Type, "Nullable(", "")
+			col.Type = strings.ReplaceAll(col.Type, ")", "")
+		}
+
+		cols = append(cols, col)
 	}
 
-	return tableInfo, nil
+	return cols, nil
 }
 
 func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName string, desiredTable ClickHouseTable) error {
-	currentTable, err := client.GetTable(ctx, desiredTable.Database, currentTableName)
+	err := client.RenameTable(ctx, desiredTable.Database, currentTableName, desiredTable.Name)
 	if err != nil {
 		return err
 	}
 
-	if currentTable.Name != desiredTable.Name {
-		query := fmt.Sprintf(
-			"RENAME TABLE %s.%s TO %s.%s",
-			QuoteID(desiredTable.Database),
-			QuoteID(currentTable.Name),
-			QuoteID(desiredTable.Database),
-			QuoteID(desiredTable.Name),
-		)
-		tflog.Info(ctx, "Renaming a table", dict{"query": query})
-		err := client.Conn.Exec(ctx, query)
+	currentTableInfo, err := client.GetTable(ctx, desiredTable.Database, desiredTable.Name)
+	if err != nil {
+		return err
+	}
+	currentTable := currentTableInfo.ToTable()
+
+	err = client.AlterColumns(ctx, currentTable, desiredTable)
+	if err != nil {
+		return err
+	}
+
+	err = client.AlterTableSettings(ctx, currentTable, desiredTable)
+	if err != nil {
+		return err
+	}
+
+	if len(desiredTable.OrderBy) > 1 {
+		err = client.ModifyOrderBy(ctx, currentTable.Database, currentTable.Name, desiredTable.OrderBy)
 		if err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (client *ClickHouseClient) RenameTable(ctx context.Context, db, from, to string) error {
+	if from == to {
+		return nil
+	}
+	query := fmt.Sprintf(
+		"RENAME TABLE %s.%s TO %s.%s",
+		QuoteID(db),
+		QuoteID(from),
+		QuoteID(db),
+		QuoteID(to),
+	)
+	tflog.Info(ctx, "Renaming a table", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) ModifyOrderBy(ctx context.Context, db, table string, orderBy []string) error {
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s MODIFY ORDER BY (%s)",
+		QuoteID(db),
+		QuoteID(table),
+		QuoteListWithTicksAndJoin(orderBy),
+	)
+	tflog.Info(ctx, "Renaming a table", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) AlterTableSettings(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
+	desiredSettingsSet := hashset.New[string]()
+	for k := range desiredTable.Settings {
+		desiredSettingsSet.Add(k)
+	}
+
+	currentSettingsSet := hashset.New[string]()
+	for k := range currentTable.Settings {
+		currentSettingsSet.Add(k)
+	}
+
+	err := client.ModifyTableSettings(ctx, desiredTable.Database, desiredTable.Name, desiredTable.Settings)
+	if err != nil {
+		return err
+	}
+
+	resetSettings := currentSettingsSet.Difference(desiredSettingsSet)
+	return client.ResetTableSettings(ctx, desiredTable.Database, desiredTable.Name, resetSettings.Values()...)
+}
+
+func (client *ClickHouseClient) ModifyTableSettings(ctx context.Context, db, table string, settings map[string]string) error {
+	if len(settings) == 0 {
+		return nil
+	}
+
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s MODIFY SETTING %s",
+		QuoteID(db),
+		QuoteID(table),
+		QuoteMapAndJoin(settings),
+	)
+	tflog.Info(ctx, "Modifying table settings", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) ResetTableSettings(ctx context.Context, db, table string, settingsNames ...string) error {
+	if len(settingsNames) == 0 {
+		return nil
+	}
+
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s RESET SETTING %s",
+		QuoteID(db),
+		QuoteID(table),
+		QuoteListWithTicksAndJoin(settingsNames),
+	)
+	tflog.Info(ctx, "Resetting table settings", dict{"query": query})
+
+	return client.Conn.Exec(ctx, query)
+}
+
+func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
 	desiredColsSet := hashset.New[string](desiredTable.Columns.Names()...)
 	currentColsSet := hashset.New[string](currentTable.Columns.Names()...)
 	oldCols := currentColsSet.Intersection(desiredColsSet)
@@ -262,8 +436,8 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 	if !oldCols.Contains(currentColsSet.Values()...) {
 		return &NotSupportedError{
 			Operation: "renaming or removing columns",
-			Detail: fmt.Sprintf("cannot update columns of table %s.%s:"+
-				"desired config does not contain columns from previous config."+
+			Detail: fmt.Sprintf("cannot update columns of table %s.%s: "+
+				"desired config does not contain columns from previous config. "+
 				"If you did not try to rename or delete columns, it is a bug in the Client",
 				desiredTable.Database,
 				desiredTable.Name,
@@ -272,12 +446,16 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 	}
 
 	for _, colName := range newCols.Values() {
+		colType := desiredColsMap[colName].Type
+		if desiredColsMap[colName].Nullable {
+			colType = "Nullable(" + colType + ")"
+		}
 		query := fmt.Sprintf(
 			`ALTER TABLE %s.%s ADD COLUMN %s %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
 			QuoteID(desiredTable.Name),
 			QuoteID(colName),
-			QuoteID(desiredColsMap[colName].Type),
+			colType,
 			QuoteValue(desiredColsMap[colName].Comment),
 		)
 		tflog.Info(ctx, "Adding a column", dict{"query": query})
@@ -292,11 +470,15 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 			continue
 		}
 
+		colType := col.Type
+		if col.Nullable {
+			colType = "Nullable(" + colType + ")"
+		}
 		query := fmt.Sprintf(`ALTER TABLE %s.%s ALTER COLUMN %s TYPE %s COMMENT %s`,
 			QuoteID(desiredTable.Database),
 			QuoteID(desiredTable.Name),
 			QuoteID(col.Name),
-			QuoteID(col.Type),
+			colType,
 			QuoteValue(col.Comment),
 		)
 		tflog.Info(ctx, "Changing a column", dict{"query": query})
@@ -314,7 +496,10 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 				continue
 			}
 		}
-
+		colType := desiredCol.Type
+		if desiredCol.Nullable {
+			colType = "Nullable(" + colType + ")"
+		}
 		desiredIdx := i
 		var query string
 
@@ -324,7 +509,7 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 				QuoteID(desiredTable.Database),
 				QuoteID(desiredTable.Name),
 				QuoteID(desiredCol.Name),
-				QuoteID(desiredCol.Type),
+				colType,
 			)
 		} else {
 			prevColName := desiredTable.Columns[desiredIdx-1].Name
@@ -333,7 +518,7 @@ func (client *ClickHouseClient) AlterTable(ctx context.Context, currentTableName
 				QuoteID(desiredTable.Database),
 				QuoteID(desiredTable.Name),
 				QuoteID(desiredCol.Name),
-				QuoteID(desiredCol.Type),
+				colType,
 				QuoteID(prevColName),
 			)
 		}

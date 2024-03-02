@@ -2,7 +2,7 @@ version: '3'
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:23.12
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-23.12}
     hostname: clickhouse
     ports:
       - "${CLICKHOUSE_LOCAL_PORT_HTTP:-8123}:8123"
@@ -11,7 +11,6 @@ services:
       - "./configs/config.xml:/etc/clickhouse-server/config.xml:ro"
       - "./configs/users.xml:/etc/clickhouse-server/users.xml:ro"
       - "./configs/metrika.xml:/etc/clickhouse-server/metrika.xml:ro"
-      # - ./data/server-01:/var/lib/clickhouse
     ulimits:
       nofile:
         soft: 262144

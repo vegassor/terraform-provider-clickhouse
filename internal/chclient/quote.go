@@ -58,3 +58,20 @@ func QuoteList(v []string, quote string) []string {
 
 	return result
 }
+
+func QuoteListWithTicksAndJoin(v []string) string {
+	result := QuoteList(v, "`")
+	return strings.Join(result, ", ")
+}
+
+func QuoteMapAndJoin(data map[string]string) string {
+	var params []string
+
+	for k, v := range data {
+		key := QuoteWithTicks(k)
+		val := QuoteValue(v)
+		params = append(params, key+" = "+val)
+	}
+
+	return strings.Join(params, ", ")
+}
