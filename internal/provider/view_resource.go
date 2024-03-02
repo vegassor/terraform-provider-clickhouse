@@ -94,10 +94,7 @@ func (r *ViewResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	view, err := r.client.GetTable(ctx, model.Database, model.Name)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find view",
-			err.Error(),
-		)
+		handleNotFoundError(ctx, err, resp, "view", model.Name)
 		return
 	}
 	model.Name = view.Name

@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -18,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &DatabaseResource{}
 var _ resource.ResourceWithImportState = &DatabaseResource{}
 
@@ -26,12 +24,10 @@ func NewDatabaseResource() resource.Resource {
 	return &DatabaseResource{}
 }
 
-// DatabaseResource defines the resource implementation.
 type DatabaseResource struct {
 	client *chclient.ClickHouseClient
 }
 
-// DatabaseResourceModel describes the resource data model.
 type DatabaseResourceModel struct {
 	Name    types.String `tfsdk:"name"`
 	Engine  types.String `tfsdk:"engine"`
@@ -80,22 +76,10 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 }
 
 func (r *DatabaseResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
+	client, err := configureClickHouseClient(ctx, req, resp)
+	if err != nil {
 		return
 	}
-
-	client, ok := req.ProviderData.(*chclient.ClickHouseClient)
-
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *http.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-
 	r.client = client
 }
 
@@ -139,10 +123,7 @@ func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	receivedDb, err := r.client.GetDatabase(ctx, db.Name.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find database",
-			err.Error(),
-		)
+		handleNotFoundError(ctx, err, resp, "database", db.Name.ValueString())
 		return
 	}
 

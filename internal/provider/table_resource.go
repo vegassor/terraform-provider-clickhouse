@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -279,10 +280,7 @@ func (r *TableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 
 	receivedTableInfo, err := r.client.GetTable(ctx, stateTableModel.Database, stateTableModel.Name)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find table",
-			err.Error(),
-		)
+		handleNotFoundError(ctx, err, resp, "table", stateTableModel.FullName.ValueString())
 		return
 	}
 
@@ -456,4 +454,21 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 		Settings:         settings,
 		Columns:          cols,
 	}, diags
+}
+
+func handleNotFoundError(ctx context.Context, err error, resp *resource.ReadResponse, entity string, name string) {
+	var notFoundError *chclient.NotFoundError
+	ok := errors.As(err, &notFoundError)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Cannot find "+entity,
+			err.Error(),
+		)
+	}
+
+	resp.Diagnostics.AddWarning(
+		"Cannot find "+entity,
+		entity+" "+name+" not found in ClickHouse. Removing the resource from state",
+	)
+	resp.State.RemoveResource(ctx)
 }

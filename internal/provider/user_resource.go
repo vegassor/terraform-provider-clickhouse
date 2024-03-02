@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -198,22 +197,10 @@ func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 }
 
 func (r *UserResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
+	client, err := configureClickHouseClient(ctx, req, resp)
+	if err != nil {
 		return
 	}
-
-	client, ok := req.ProviderData.(*chclient.ClickHouseClient)
-
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *http.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-
 	r.client = client
 }
 
@@ -247,24 +234,21 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 }
 
 func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var user *UserResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &user)...)
+	var model *UserResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	receivedUser, err := r.client.GetUser(ctx, user.Name)
+	receivedUser, err := r.client.GetUser(ctx, model.Name)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find user",
-			err.Error(),
-		)
+		handleNotFoundError(ctx, err, resp, "user", model.Name)
 		return
 	}
-	user.Name = receivedUser.Name
+	model.Name = receivedUser.Name
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &user)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
 
 func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {

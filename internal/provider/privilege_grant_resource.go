@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -162,10 +163,8 @@ func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequ
 
 	receivedGrants, err := r.client.GetPrivilegeGrants(ctx, stateModel.Grantee, stateModel.AccessType)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find privilege grant",
-			err.Error(),
-		)
+		name := fmt.Sprintf("(grantee=%s, access_type=%s)", stateModel.Grantee, stateModel.AccessType)
+		handleNotFoundError(ctx, err, resp, "privilege grant", name)
 		return
 	}
 
