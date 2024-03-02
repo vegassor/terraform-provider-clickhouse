@@ -131,7 +131,7 @@ GROUP BY
 	defer rows.Close()
 
 	if !rows.Next() {
-		name := fmt.Sprintf("(grantee=%s, access_type=%s)")
+		name := fmt.Sprintf("(grantee=%s, access_type=%s)", grantee, accessType)
 		return nil, &NotFoundError{Entity: "privilege grant", Name: name, Query: query}
 	}
 
