@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 )
 
@@ -22,9 +23,10 @@ type ViewResource struct {
 }
 
 type ViewResourceModel struct {
-	Database string `tfsdk:"database"`
-	Name     string `tfsdk:"name"`
-	Query    string `tfsdk:"query"`
+	Database string       `tfsdk:"database"`
+	Name     string       `tfsdk:"name"`
+	FullName types.String `tfsdk:"full_name"`
+	Query    string       `tfsdk:"query"`
 }
 
 func (r *ViewResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -46,6 +48,11 @@ func (r *ViewResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Required:            true,
 				Validators:          []validator.String{clickHouseIdentifierValidator},
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
+			},
+			"full_name": schema.StringAttribute{
+				MarkdownDescription: "ClickHouse view name in `database.view_name` format",
+				Computed:            true,
+				PlanModifiers:       []planmodifier.String{fullNamePlanModifier{}},
 			},
 			"query": schema.StringAttribute{
 				MarkdownDescription: "View definition query. It should be a valid SELECT statement.",
@@ -94,7 +101,7 @@ func (r *ViewResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	view, err := r.client.GetTable(ctx, model.Database, model.Name)
 	if err != nil {
-		handleNotFoundError(ctx, err, resp, "view", model.Name)
+		handleNotFoundError(ctx, err, resp, "view", model.FullName.ValueString())
 		return
 	}
 	model.Name = view.Name
