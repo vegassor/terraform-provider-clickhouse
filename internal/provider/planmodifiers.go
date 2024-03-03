@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -77,15 +78,20 @@ func (m fullNamePlanModifier) PlanModifyString(ctx context.Context, req planmodi
 		return
 	}
 
-	var tableModel TableResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &tableModel)...)
+	var db, name string
+	resp.Diagnostics.Append(
+		req.Plan.GetAttribute(ctx, path.Root("database"), &db)...,
+	)
+	resp.Diagnostics.Append(
+		req.Plan.GetAttribute(ctx, path.Root("name"), &name)...,
+	)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	if tableModel.Database == "" || tableModel.Name == "" {
+	if db == "" || name == "" {
 		return
 	}
 
-	resp.PlanValue = types.StringValue(tableModel.Database + "." + tableModel.Name)
+	resp.PlanValue = types.StringValue(db + "." + name)
 }

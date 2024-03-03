@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -107,10 +108,8 @@ func (r *RoleGrantResource) Read(ctx context.Context, req resource.ReadRequest, 
 
 	receivedGrant, err := r.client.GetRoleGrant(ctx, model.Role, model.Grantee)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find role grant",
-			err.Error(),
-		)
+		name := fmt.Sprintf("(role=%s, grantee=%s)", model.Role, model.Grantee)
+		handleNotFoundError(ctx, err, resp, "role grant", name)
 		return
 	}
 

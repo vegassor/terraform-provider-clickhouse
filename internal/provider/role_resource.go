@@ -78,10 +78,7 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	receivedRoleName, err := r.client.GetRole(ctx, model.Name)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find role",
-			err.Error(),
-		)
+		handleNotFoundError(ctx, err, resp, "role", model.Name)
 		return
 	}
 

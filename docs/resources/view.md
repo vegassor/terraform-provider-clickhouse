@@ -20,3 +20,7 @@ ClickHouse view. See: https://clickhouse.com/docs/en/sql-reference/statements/cr
 - `database` (String) ClickHouse database name
 - `name` (String) View name in ClickHouse database
 - `query` (String) View definition query. It should be a valid SELECT statement.
+
+### Read-Only
+
+- `full_name` (String) ClickHouse view name in `database.view_name` format

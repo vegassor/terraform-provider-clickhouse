@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -116,13 +118,18 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 
 	grants, err := r.client.GetPrivilegeGrants(ctx, model.Grantee, model.AccessType)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot check whether privilege grants already exist. "+
-				"This check is required due to the requirement that every `privilege_grant` "+
-				"resource must have unique (`grantee`, `access_type`) pair.",
-			err.Error(),
-		)
-		return
+		var notFoundError *chclient.NotFoundError
+		ok := errors.As(err, &notFoundError)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Cannot check whether privilege grants already exist. "+
+					"This check is required due to the requirement that every `privilege_grant` "+
+					"resource must have unique (`grantee`, `access_type`) pair.",
+				err.Error(),
+			)
+			return
+		}
+
 	}
 	if len(grants) > 0 {
 		resp.Diagnostics.AddError(
@@ -162,10 +169,8 @@ func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequ
 
 	receivedGrants, err := r.client.GetPrivilegeGrants(ctx, stateModel.Grantee, stateModel.AccessType)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot find privilege grant",
-			err.Error(),
-		)
+		name := fmt.Sprintf("(grantee=%s, access_type=%s)", stateModel.Grantee, stateModel.AccessType)
+		handleNotFoundError(ctx, err, resp, "privilege grant", name)
 		return
 	}
 

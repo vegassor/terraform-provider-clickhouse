@@ -130,11 +130,7 @@ WHERE "name" = %s`,
 	}
 
 	if !rows.Next() {
-		return ClickHouseUser{}, fmt.Errorf(
-			"could not find user %s: no records returned. Query: `%s`",
-			name,
-			query,
-		)
+		return ClickHouseUser{}, &NotFoundError{Entity: "user", Name: name, Query: query}
 	}
 
 	var nameReceived string

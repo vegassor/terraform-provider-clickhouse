@@ -87,11 +87,7 @@ func (client *ClickHouseClient) GetDatabase(ctx context.Context, name string) (C
 	}
 
 	if !rows.Next() {
-		return ClickHouseDatabase{}, fmt.Errorf(
-			"could not find database %s: no records returned. Query: `%s`",
-			name,
-			query,
-		)
+		return ClickHouseDatabase{}, &NotFoundError{Entity: "database", Name: name, Query: query}
 	}
 
 	var nameReceived string

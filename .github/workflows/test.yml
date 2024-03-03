@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
-      fail-fast: false
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         terraform:
           - '1.7.*'
