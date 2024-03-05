@@ -113,8 +113,6 @@ WHERE
     AND access_type = %s
     AND is_partial_revoke = 0
 GROUP BY
-    access_type,
-    role_name,
     database,
     table,
     grant_option`,
@@ -130,13 +128,9 @@ GROUP BY
 	}
 	defer rows.Close()
 
-	if !rows.Next() {
-		name := fmt.Sprintf("(grantee=%s, access_type=%s)", grantee, accessType)
-		return nil, &NotFoundError{Entity: "privilege grant", Name: name, Query: query}
-	}
-
 	var grants []PrivilegeGrant
 	for rows.Next() {
+		tflog.Error(ctx, "ITERATION", dict{})
 		var db, table string
 		var columns []string
 		var grantOption uint8
@@ -152,6 +146,11 @@ GROUP BY
 			Columns:     columns,
 			GrantOption: grantOption == 1,
 		})
+	}
+
+	if len(grants) == 0 {
+		name := fmt.Sprintf("(grantee=%s, access_type=%s)", grantee, accessType)
+		return nil, &NotFoundError{Entity: "privilege grant", Name: name, Query: query}
 	}
 
 	return grants, nil
