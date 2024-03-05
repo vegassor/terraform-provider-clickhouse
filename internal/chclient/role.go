@@ -11,7 +11,7 @@ func (client *ClickHouseClient) CreateRole(ctx context.Context, name string) err
 }
 
 func (client *ClickHouseClient) GetRole(ctx context.Context, roleName string) (string, error) {
-	query := `select "name" from "system"."roles" where "name" = ` + QuoteValue(roleName)
+	query := `SELECT "name" FROM "system"."roles" WHERE "name" = ` + QuoteValue(roleName)
 	rows, err := client.Conn.Query(ctx, query)
 	if err != nil {
 		return "", err
