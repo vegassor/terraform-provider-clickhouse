@@ -34,7 +34,7 @@ var clickHouseIdentifierValidator = stringvalidator.RegexMatches(
 type grantEntityValidator struct{}
 
 func (v grantEntityValidator) Description(context.Context) string {
-	return "Value should be a name of ClickHouse table, view, dict, etc " +
+	return "Value should be a valid name of ClickHouse entity(database, table, view, dict, etc) " +
 		"(regex=\"^[a-zA-Z0-9_]+$\") or \"*\""
 }
 

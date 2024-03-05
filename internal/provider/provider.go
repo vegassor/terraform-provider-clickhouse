@@ -47,19 +47,19 @@ func (p *ClickHouseProvider) Schema(ctx context.Context, req provider.SchemaRequ
 		Attributes: map[string]schema.Attribute{
 			"protocol": schema.StringAttribute{
 				Optional:    true,
-				Description: "ClickHouse host for HTTP protocol",
+				Description: "Protocol for connection to ClickHouse. Must be one of `http` or `native`",
 				Validators:  []validator.String{stringvalidator.OneOfCaseInsensitive("http", "native")},
 			},
 			"host": schema.StringAttribute{
 				Required:    true,
-				Description: "ClickHouse host for HTTP protocol",
+				Description: "ClickHouse host, e.g. `localhost`",
 			},
 			"port": schema.Int64Attribute{
 				Optional:    true,
-				Description: "ClickHouse port for HTTP protocol",
+				Description: "ClickHouse port, e.g. `9000`",
 			},
 			"username": schema.StringAttribute{
-				MarkdownDescription: "ClickHouse user",
+				MarkdownDescription: "ClickHouse user that have enough permissions to manage databases, users, tables, etc.",
 				Required:            true,
 			},
 			"password": schema.StringAttribute{

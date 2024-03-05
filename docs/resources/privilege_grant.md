@@ -19,17 +19,17 @@ Grant privileges to a user or role. Corresponds to `system.grants` table. Note, 
 
 - `access_type` (String) Name of a table/view/matview/dictionary etc or '*' for all entities
 - `grantee` (String) User or role to grant the role to
-- `grants` (Attributes Set) `TODO` (see [below for nested schema](#nestedatt--grants))
+- `grants` (Attributes Set) Set of privileges to grant. Each privilege is a separate record with fields `database`, `table`, `columns` and `with_grant_option` (see [below for nested schema](#nestedatt--grants))
 
 <a id="nestedatt--grants"></a>
 ### Nested Schema for `grants`
 
 Required:
 
-- `database` (String) ClickHouse database name
-- `table` (String) Name of a table/view/matview/dictionary etc or '*' for all entities
+- `database` (String) ClickHouse database name or `*` for all databases.
+- `table` (String) Name of a table/view/matview/dictionary etc or '*' for all entities in the database
 
 Optional:
 
-- `columns` (List of String) Columns of ClickHouse table. If empty or null, it is supposed *all* columns are allowed
+- `columns` (List of String) Columns of ClickHouse table. If empty or null, it is supposed that *all* columns are allowed
 - `with_grant_option` (Boolean) Whether to grant privilege with grant option or not

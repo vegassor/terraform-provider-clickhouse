@@ -33,4 +33,4 @@ resource "clickhouse_database" "in_mem_db" {
 
 - `comment` (String) Comment for database
 - `engine` (String) Database engine. Currently supported only `Atomic` and `Memory`. https://clickhouse.com/docs/en/engines/database-engines
-- `name` (String) Example configurable attribute
+- `name` (String) Name of a database

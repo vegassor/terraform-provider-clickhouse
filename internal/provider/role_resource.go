@@ -29,7 +29,7 @@ func (r *RoleResource) Metadata(ctx context.Context, req resource.MetadataReques
 
 func (r *RoleResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "ClickHouse user",
+		MarkdownDescription: "ClickHouse role",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Role name in ClickHouse",

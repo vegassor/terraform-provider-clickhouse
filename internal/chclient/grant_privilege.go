@@ -130,7 +130,6 @@ GROUP BY
 
 	var grants []PrivilegeGrant
 	for rows.Next() {
-		tflog.Error(ctx, "ITERATION", dict{})
 		var db, table string
 		var columns []string
 		var grantOption uint8

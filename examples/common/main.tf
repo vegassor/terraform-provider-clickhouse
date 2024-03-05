@@ -25,12 +25,16 @@ resource "clickhouse_privilege_grant" "to_role" {
 
   grants = [
     {
+      database = "other"
+      table    = "other"
+    },
+    {
       database = clickhouse_table.my_table.database
       table    = clickhouse_table.my_table.name
     },
   ]
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  #  lifecycle {
+  #    prevent_destroy = true
+  #  }
 }

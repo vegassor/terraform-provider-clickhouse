@@ -28,11 +28,11 @@ provider "clickhouse" {
 
 ### Required
 
-- `host` (String) ClickHouse host for HTTP protocol
+- `host` (String) ClickHouse host, e.g. `localhost`
 - `password` (String, Sensitive) Password for ClickHouse user
-- `username` (String) ClickHouse user
+- `username` (String) ClickHouse user that have enough permissions to manage databases, users, tables, etc.
 
 ### Optional
 
-- `port` (Number) ClickHouse port for HTTP protocol
-- `protocol` (String) ClickHouse host for HTTP protocol
+- `port` (Number) ClickHouse port, e.g. `9000`
+- `protocol` (String) Protocol for connection to ClickHouse. Must be one of `http` or `native`

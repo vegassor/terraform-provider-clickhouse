@@ -17,32 +17,32 @@ ClickHouse user
 
 ### Required
 
-- `identified_with` (Attributes) (see [below for nested schema](#nestedatt--identified_with))
+- `identified_with` (Attributes) User identification method. See: https://clickhouse.com/docs/en/sql-reference/statements/create/user#identification .Supported methods: `sha256_hash` and `sha256_password`. Only one of them should be set (see [below for nested schema](#nestedatt--identified_with))
 - `name` (String) ClickHouse user name
 
 ### Optional
 
-- `default_database` (String)
-- `hosts` (Attributes) Hosts from which user is allowed to connect to ClickHouse. If unset, then ANY host. If set to empty map ({}) - NONE - user won't be able to connect (see [below for nested schema](#nestedatt--hosts))
+- `default_database` (String) Default database for user
+- `hosts` (Attributes) Hosts from which user is allowed to connect to ClickHouse. If unset, then ANY host. If set to empty map ({}) - NONE - user won't be able to connect. See https://clickhouse.com/docs/en/sql-reference/statements/create/user#user-host (see [below for nested schema](#nestedatt--hosts))
 
 <a id="nestedatt--identified_with"></a>
 ### Nested Schema for `identified_with`
 
 Optional:
 
-- `sha256_hash` (Attributes) (see [below for nested schema](#nestedatt--identified_with--sha256_hash))
-- `sha256_password` (String, Sensitive)
+- `sha256_hash` (Attributes) Settings for identification `sha256_hash` identification (see [below for nested schema](#nestedatt--identified_with--sha256_hash))
+- `sha256_password` (String, Sensitive) Password for `sha256_password` identification. It is better to use `sha256_hash` instead of `sha256_password` in order to avoid storing passwords in terraform state
 
 <a id="nestedatt--identified_with--sha256_hash"></a>
 ### Nested Schema for `identified_with.sha256_hash`
 
 Required:
 
-- `hash` (String, Sensitive)
+- `hash` (String, Sensitive) SHA256 of the password
 
 Optional:
 
-- `salt` (String, Sensitive)
+- `salt` (String, Sensitive) Salt for adding to the password before SHA256-hashing
 
 
 
@@ -51,7 +51,7 @@ Optional:
 
 Optional:
 
-- `ip` (List of String)
-- `like` (List of String)
-- `name` (List of String)
-- `regexp` (List of String)
+- `ip` (List of String) Corresponds to `HOST IP 'ip'` expression
+- `like` (List of String) Corresponds to `HOST LIKE 'like template'` expression
+- `name` (List of String) Corresponds to `HOST NAME 'fqdn'` expression
+- `regexp` (List of String) Corresponds to `HOST REGEXP 'regexp'` expression
