@@ -117,7 +117,7 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	grants, err := r.client.GetPrivilegeGrants(ctx, model.Grantee, model.AccessType)
+	_, err := r.client.GetPrivilegeGrants(ctx, model.Grantee, model.AccessType)
 	if err != nil {
 		var notFoundError *chclient.NotFoundError
 		ok := errors.As(err, &notFoundError)
@@ -130,9 +130,6 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 			)
 			return
 		}
-
-	}
-	if len(grants) > 0 {
 		resp.Diagnostics.AddError(
 			"Privilege grants already exist",
 			"Privilege grants already exist for the given grantee and access type. "+

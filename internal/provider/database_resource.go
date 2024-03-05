@@ -83,7 +83,7 @@ func (r *DatabaseResource) Configure(ctx context.Context, req resource.Configure
 }
 
 func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data *DatabaseResourceModel
+	var data DatabaseResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -108,12 +108,11 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 
 	tflog.Debug(ctx, "Created a clickhouse_database resource", dict{"name": data.Name.ValueString()})
 
-	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var db *DatabaseResourceModel
+	var db DatabaseResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &db)...)
 
 	if resp.Diagnostics.HasError() {
@@ -138,7 +137,7 @@ func (r *DatabaseResource) Update(ctx context.Context, req resource.UpdateReques
 }
 
 func (r *DatabaseResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data *DatabaseResourceModel
+	var data DatabaseResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
