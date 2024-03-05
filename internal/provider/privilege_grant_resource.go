@@ -64,28 +64,29 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 			},
 			"grants": schema.SetNestedAttribute{
 				Required:            true,
-				MarkdownDescription: "`TODO`",
+				MarkdownDescription: "Set of privileges to grant. Each privilege is a separate record with fields `database`, `table`, `columns` and `with_grant_option`",
 				Validators:          []validator.Set{setvalidator.SizeAtLeast(1)},
 				PlanModifiers:       []planmodifier.Set{setplanmodifier.UseStateForUnknown(), setplanmodifier.RequiresReplace()},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"database": schema.StringAttribute{
-							MarkdownDescription: "ClickHouse database name",
+							MarkdownDescription: "ClickHouse database name or `*` for all databases.",
 							Required:            true,
-							Validators:          []validator.String{},
+							Validators:          []validator.String{grantEntityValidator{}},
 							PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 						},
 						"table": schema.StringAttribute{
-							MarkdownDescription: "Name of a table/view/matview/dictionary etc or '*' for all entities",
+							MarkdownDescription: "Name of a table/view/matview/dictionary etc or '*' for all entities in the database",
 							Required:            true,
 							Validators:          []validator.String{grantEntityValidator{}},
 							PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 						},
 						"columns": schema.ListAttribute{
-							Optional:            true,
-							MarkdownDescription: "Columns of ClickHouse table. If empty or null, it is supposed *all* columns are allowed",
-							PlanModifiers:       []planmodifier.List{listplanmodifier.RequiresReplace(), listplanmodifier.UseStateForUnknown()},
-							ElementType:         types.StringType,
+							Optional: true,
+							MarkdownDescription: "Columns of ClickHouse table. If empty or null, " +
+								"it is supposed that *all* columns are allowed",
+							PlanModifiers: []planmodifier.List{listplanmodifier.RequiresReplace(), listplanmodifier.UseStateForUnknown()},
+							ElementType:   types.StringType,
 						},
 						"with_grant_option": schema.BoolAttribute{
 							MarkdownDescription: "Whether to grant privilege with grant option or not",

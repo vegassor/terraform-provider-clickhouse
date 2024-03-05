@@ -68,9 +68,9 @@ resource "clickhouse_table" "my_table" {
 Required:
 
 - `name` (String) Column name in ClickHouse table
-- `type` (String) See: https://clickhouse.com/docs/en/sql-reference/data-types
+- `type` (String) Column type. See: https://clickhouse.com/docs/en/sql-reference/data-types
 
 Optional:
 
-- `comment` (String)
-- `nullable` (Boolean)
+- `comment` (String) Comment for a column
+- `nullable` (Boolean) Whether a column can contain NULL values

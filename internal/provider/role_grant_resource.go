@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 )
@@ -28,10 +27,9 @@ type RoleGrantResource struct {
 }
 
 type RoleGrantResourceModel struct {
-	Grantee         string       `tfsdk:"grantee"`
-	Role            string       `tfsdk:"role"`
-	WithAdminOption bool         `tfsdk:"with_admin_option"`
-	GrantType       types.String `tfsdk:"grant_type"`
+	Grantee         string `tfsdk:"grantee"`
+	Role            string `tfsdk:"role"`
+	WithAdminOption bool   `tfsdk:"with_admin_option"`
 }
 
 func (r *RoleGrantResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -60,10 +58,6 @@ func (r *RoleGrantResource) Schema(ctx context.Context, req resource.SchemaReque
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
-			},
-			"grant_type": schema.StringAttribute{
-				MarkdownDescription: "Whether grant given to user or role",
-				Computed:            true,
 			},
 		},
 	}
@@ -94,7 +88,6 @@ func (r *RoleGrantResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	model.GrantType = types.StringValue("user")
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
 
@@ -117,7 +110,6 @@ func (r *RoleGrantResource) Read(ctx context.Context, req resource.ReadRequest, 
 		Role:            receivedGrant.Role,
 		Grantee:         receivedGrant.Grantee,
 		WithAdminOption: receivedGrant.WithAdminOption,
-		GrantType:       types.StringValue(string(receivedGrant.RoleGrantType)),
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
@@ -126,7 +118,7 @@ func (r *RoleGrantResource) Update(ctx context.Context, req resource.UpdateReque
 	resp.Diagnostics.AddError(
 		"Cannot update role grant",
 		"Role grant should always be recreated. "+
-			"If you see this error - it is a bug in provider.",
+			"If you see this error - it is a bug in the provider.",
 	)
 }
 

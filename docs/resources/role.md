@@ -3,12 +3,12 @@
 page_title: "clickhouse_role Resource - terraform-provider-clickhouse"
 subcategory: ""
 description: |-
-  ClickHouse user
+  ClickHouse role
 ---
 
 # clickhouse_role (Resource)
 
-ClickHouse user
+ClickHouse role
 
 
 

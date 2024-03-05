@@ -106,7 +106,6 @@ func (r *UserResource) Metadata(ctx context.Context, req resource.MetadataReques
 }
 
 func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
-	// TODO: properly validate resource
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse user",
 		Attributes: map[string]schema.Attribute{
@@ -121,27 +120,39 @@ func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				},
 			},
 			"identified_with": schema.SingleNestedAttribute{
+				MarkdownDescription: "User identification method. " +
+					"See: https://clickhouse.com/docs/en/sql-reference/statements/create/user#identification ." +
+					"Supported methods: `sha256_hash` and `sha256_password`. Only one of them should be set",
 				Required: true,
 				Attributes: map[string]schema.Attribute{
 					"sha256_hash": schema.SingleNestedAttribute{
-						Optional: true,
+						MarkdownDescription: "Settings for identification `sha256_hash` identification",
+						Optional:            true,
 						Attributes: map[string]schema.Attribute{
 							"hash": schema.StringAttribute{
-								Required:  true,
-								Sensitive: true,
+								MarkdownDescription: "SHA256 of the password",
+								Required:            true,
+								Sensitive:           true,
 								Validators: []validator.String{
-									stringvalidator.RegexMatches(regexp.MustCompile("[a-fA-F0-9]{64}"), `SHA256 hash should contain 64 hexadecimal digits (regexp: "[a-f0-9][a-fA-F0-9]{64}")`),
+									stringvalidator.RegexMatches(
+										regexp.MustCompile("[a-fA-F0-9]{64}"),
+										`SHA256 hash should contain 64 hexadecimal digits (regexp: "[a-f0-9][a-fA-F0-9]{64}")`,
+									),
 								},
 							},
 							"salt": schema.StringAttribute{
-								Optional:  true,
-								Sensitive: true,
-								Computed:  true,
-								Default:   stringdefault.StaticString(""),
+								MarkdownDescription: "Salt for adding to the password before SHA256-hashing",
+								Optional:            true,
+								Sensitive:           true,
+								Computed:            true,
+								Default:             stringdefault.StaticString(""),
 							},
 						},
 					},
 					"sha256_password": schema.StringAttribute{
+						MarkdownDescription: "Password for `sha256_password` identification. It is better to use " +
+							"`sha256_hash` instead of `sha256_password` in order to avoid storing passwords " +
+							"in terraform state",
 						Optional:  true,
 						Sensitive: true,
 						Validators: []validator.String{
@@ -154,33 +165,39 @@ func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				},
 			},
 			"hosts": schema.SingleNestedAttribute{
-				Optional:            true,
-				MarkdownDescription: "Hosts from which user is allowed to connect to ClickHouse. If unset, then ANY host. If set to empty map ({}) - NONE - user won't be able to connect",
+				Optional: true,
+				MarkdownDescription: "Hosts from which user is allowed to connect to ClickHouse. If unset, " +
+					"then ANY host. If set to empty map ({}) - NONE - user won't be able to connect. " +
+					"See https://clickhouse.com/docs/en/sql-reference/statements/create/user#user-host",
 				Attributes: map[string]schema.Attribute{
 					"ip": schema.ListAttribute{
-						Optional:    true,
-						ElementType: types.StringType,
+						MarkdownDescription: "Corresponds to `HOST IP 'ip'` expression",
+						Optional:            true,
+						ElementType:         types.StringType,
 						Validators: []validator.List{
 							listvalidator.ValueStringsAre(),
 						},
 					},
 					"name": schema.ListAttribute{
-						Optional:    true,
-						ElementType: types.StringType,
+						MarkdownDescription: "Corresponds to `HOST NAME 'fqdn'` expression",
+						Optional:            true,
+						ElementType:         types.StringType,
 						Validators: []validator.List{
 							listvalidator.ValueStringsAre(),
 						},
 					},
 					"regexp": schema.ListAttribute{
-						Optional:    true,
-						ElementType: types.StringType,
+						MarkdownDescription: "Corresponds to `HOST REGEXP 'regexp'` expression",
+						Optional:            true,
+						ElementType:         types.StringType,
 						Validators: []validator.List{
 							listvalidator.ValueStringsAre(),
 						},
 					},
 					"like": schema.ListAttribute{
-						Optional:    true,
-						ElementType: types.StringType,
+						MarkdownDescription: "Corresponds to `HOST LIKE 'like template'` expression",
+						Optional:            true,
+						ElementType:         types.StringType,
 						Validators: []validator.List{
 							listvalidator.ValueStringsAre(),
 						},
@@ -188,9 +205,10 @@ func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				},
 			},
 			"default_database": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				Default:  stringdefault.StaticString(""),
+				MarkdownDescription: "Default database for user",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 			},
 		},
 	}

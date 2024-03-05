@@ -42,10 +42,9 @@ func (r *DatabaseResource) Metadata(ctx context.Context, req resource.MetadataRe
 func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse database",
-
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Example configurable attribute",
+				MarkdownDescription: "Name of a database",
 				Optional:            true,
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(
