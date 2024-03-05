@@ -11,7 +11,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
 - [ ] Provider
   - [x] Add HTTP (port 8123) configuration support
 - [ ] Resources
-  - [ ] Handle missing resources: do not fail if a resource does not exist, but set empty state
+  - [x] Handle missing resources: do not fail if a resource does not exist, but set empty state
   - [x] Role resource
   - [x] Grant privilege resource
     - [ ] Check if grants break the resource and cause re-creation on every plan
@@ -21,7 +21,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
   - [x] View resource
   - [ ] MatView resource
   - [ ] Complex table resources
-    - [ ] MergeTree family
+    - [x] MergeTree family
     - [ ] RabbitMQ table
   - [ ] Implement import
   - [x] Table
