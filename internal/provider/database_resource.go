@@ -29,6 +29,7 @@ type DatabaseResource struct {
 }
 
 type DatabaseResourceModel struct {
+	ID      types.String `tfsdk:"id"`
 	Name    types.String `tfsdk:"name"`
 	Engine  types.String `tfsdk:"engine"`
 	Comment types.String `tfsdk:"comment"`
@@ -43,6 +44,9 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse database",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Name of a database",
 				Optional:            true,
@@ -88,6 +92,7 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	data.ID = types.StringValue(data.Name.ValueString())
 
 	err := r.client.CreateDatabase(
 		ctx,
@@ -125,6 +130,7 @@ func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	db.ID = types.StringValue(receivedDb.Name)
 	db.Name = types.StringValue(receivedDb.Name)
 	db.Comment = types.StringValue(receivedDb.Comment)
 	db.Engine = types.StringValue(receivedDb.Engine.String())

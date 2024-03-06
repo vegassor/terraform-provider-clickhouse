@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -24,33 +25,30 @@ func TestAccDatabaseResource(t *testing.T) {
 			// Update and Read testing
 			{
 				Config: chDatabaseResource("yourdb"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(
+							"clickhouse_database.test",
+							plancheck.ResourceActionReplace,
+						),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("clickhouse_database.test", "name", "yourdb"),
 					resource.TestCheckResourceAttr("clickhouse_database.test", "engine", "Atomic"),
 					resource.TestCheckResourceAttr("clickhouse_database.test", "comment", ""),
 				),
 			},
-			// Delete testing automatically occurs in TestCase
-		},
-	})
-}
-
-func TestAccImportDatabaseResource(t *testing.T) {
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
+			// Check if resource can be imported
 			{
-				Config:        chDatabaseResource("my_db"),
-				ResourceName:  "clickhouse_database.test",
-				ImportState:   true,
-				ImportStateId: "my_db",
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("clickhouse_database.test", "id", "my_db"),
-					resource.TestCheckResourceAttr("clickhouse_database.test", "name", "my_db"),
-					resource.TestCheckResourceAttr("clickhouse_database.test", "engine", "Atomic"),
-					resource.TestCheckResourceAttr("clickhouse_database.test", "comment", ""),
-				),
+				Config:                  chDatabaseResource("yourdb"),
+				ResourceName:            "clickhouse_database.test",
+				ImportState:             true,
+				ImportStateId:           "yourdb",
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"engine", "comment", "id", "name"},
 			},
+			// Delete testing automatically occurs in TestCase
 		},
 	})
 }
