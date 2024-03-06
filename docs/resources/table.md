@@ -61,6 +61,7 @@ resource "clickhouse_table" "my_table" {
 ### Read-Only
 
 - `full_name` (String) ClickHouse table name in `database.table` format
+- `id` (String) The ID of this resource.
 
 <a id="nestedatt--columns"></a>
 ### Nested Schema for `columns`

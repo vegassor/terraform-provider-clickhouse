@@ -1,8 +1,21 @@
 import {
-  to = clickhouse_database.my_db
-  id = "my_db"
+  to = clickhouse_table.my_table
+  id = "default.my_table"
 }
 
-resource "clickhouse_database" "my_db" {
-  name = "my_db"
+resource "clickhouse_table" "my_table" {
+  name     = "my_table"
+  database = "default"
+  engine   = "Memory"
+
+  columns = [
+    {
+      name = "id"
+      type = "Int32"
+    },
+    {
+      name = "name"
+      type = "String"
+    }
+  ]
 }

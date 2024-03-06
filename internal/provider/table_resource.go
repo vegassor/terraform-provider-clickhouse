@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
+	"strings"
 )
 
 var _ resource.Resource = &TableResource{}
@@ -45,16 +47,17 @@ type TableResourceModel struct {
 	Database string       `tfsdk:"database"`
 	Name     string       `tfsdk:"name"`
 	FullName types.String `tfsdk:"full_name"`
+	ID       types.String `tfsdk:"id"`
 
 	Columns []ColumnModel `tfsdk:"columns"`
 
 	Engine           string     `tfsdk:"engine"`
 	EngineParameters types.List `tfsdk:"engine_parameters"`
 
-	PartitionBy string     `tfsdk:"partition_by"`
-	OrderBy     []string   `tfsdk:"order_by"`
-	PrimaryKey  types.List `tfsdk:"primary_key"`
-	Settings    types.Map  `tfsdk:"settings"`
+	PartitionBy types.String `tfsdk:"partition_by"`
+	OrderBy     []string     `tfsdk:"order_by"`
+	PrimaryKey  types.List   `tfsdk:"primary_key"`
+	Settings    types.Map    `tfsdk:"settings"`
 
 	Comment string `tfsdk:"comment"`
 }
@@ -67,6 +70,11 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse table",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{fullNamePlanModifier{}},
+			},
+
 			"database": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse database name",
 				Required:            true,
@@ -370,6 +378,23 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 }
 
 func (r *TableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.Split(req.ID, ".")
+
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Invalid import ID",
+			"Import ID should be in `database.table` format",
+		)
+		return
+	}
+	db := parts[0]
+	table := parts[1]
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("database"), db)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), table)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), req.ID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("engine"), "")...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("comment"), "")...)
 }
 
 func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.ClickHouseTable, diag.Diagnostics) {
@@ -414,7 +439,7 @@ func toChClientTable(ctx context.Context, table TableResourceModel) (chclient.Cl
 		Comment:       table.Comment,
 		Engine:        table.Engine,
 		EngineParams:  engineParams,
-		PartitionBy:   table.PartitionBy,
+		PartitionBy:   table.PartitionBy.ValueString(),
 		OrderBy:       table.OrderBy,
 		PrimaryKeyArr: pk,
 		Settings:      settings,
@@ -444,13 +469,14 @@ func fromChClientTableInfo(ctx context.Context, table chclient.ClickHouseTableFu
 	diags.Append(ds...)
 
 	return TableResourceModel{
+		ID:               types.StringValue(table.Database + "." + table.Name),
 		Database:         table.Database,
 		Name:             table.Name,
 		FullName:         types.StringValue(table.Database + "." + table.Name),
 		Comment:          table.Comment,
 		Engine:           table.Engine,
 		EngineParameters: engineParams,
-		PartitionBy:      table.PartitionBy,
+		PartitionBy:      types.StringValue(table.PartitionBy),
 		OrderBy:          table.OrderBy,
 		PrimaryKey:       pk,
 		Settings:         settings,

@@ -39,18 +39,19 @@ func (m partitionByPlanModifier) PlanModifyList(ctx context.Context, req planmod
 		return
 	}
 
-	if tableModel.PartitionBy == "" {
+	partitonBy := tableModel.PartitionBy.ValueString()
+	if partitonBy == "" {
 		// PlanValue should already be empty list due to Default function
 		return
 	}
 
 	var partitionByParams []string
 	re := regexp.MustCompile(`\w+\((\w+)\)`)
-	matches := re.FindStringSubmatch(tableModel.PartitionBy)
+	matches := re.FindStringSubmatch(partitonBy)
 	if len(matches) > 1 {
 		partitionByParams = matches[1:]
 	} else {
-		partitionByParams = []string{tableModel.PartitionBy}
+		partitionByParams = []string{partitonBy}
 	}
 
 	val, ds := basetypes.NewListValueFrom(ctx, types.StringType, partitionByParams)

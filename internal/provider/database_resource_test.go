@@ -41,12 +41,11 @@ func TestAccDatabaseResource(t *testing.T) {
 			},
 			// Check if resource can be imported
 			{
-				Config:                  chDatabaseResource("yourdb"),
-				ResourceName:            "clickhouse_database.test",
-				ImportState:             true,
-				ImportStateId:           "yourdb",
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"engine", "comment", "id", "name"},
+				Config:            chDatabaseResource("yourdb"),
+				ResourceName:      "clickhouse_database.test",
+				ImportState:       true,
+				ImportStateId:     "yourdb",
+				ImportStateVerify: true,
 			},
 			// Delete testing automatically occurs in TestCase
 		},
@@ -61,23 +60,4 @@ resource "clickhouse_database" "test" {
 }
 `, name)
 	return providerConfig + resources
-}
-
-func chProviderConfig() string {
-	return `terraform {
-  required_providers {
-    clickhouse = {
-      source = "vegassor/clickhouse"
-    }
-  }
-}
-
-provider "clickhouse" {
-  username = "default"
-  password = "default"
-  host     = "localhost"
-  port     = 9000
-  protocol = "native"
-}
-`
 }
