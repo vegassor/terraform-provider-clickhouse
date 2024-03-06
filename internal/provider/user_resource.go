@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 	"errors"
-	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -46,8 +46,8 @@ type userAllowedHosts struct {
 	Like   []string `tfsdk:"like"`
 }
 
-// UserResourceModel describes the resource data model.
 type UserResourceModel struct {
+	ID              types.String      `tfsdk:"id"`
 	Name            string            `tfsdk:"name"`
 	IdentifiedWith  identifiedWith    `tfsdk:"identified_with"`
 	Hosts           *userAllowedHosts `tfsdk:"hosts"`
@@ -109,6 +109,9 @@ func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse user",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse user name",
 				Required:            true,
@@ -170,36 +173,36 @@ func (r *UserResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 					"then ANY host. If set to empty map ({}) - NONE - user won't be able to connect. " +
 					"See https://clickhouse.com/docs/en/sql-reference/statements/create/user#user-host",
 				Attributes: map[string]schema.Attribute{
-					"ip": schema.ListAttribute{
+					"ip": schema.SetAttribute{
 						MarkdownDescription: "Corresponds to `HOST IP 'ip'` expression",
 						Optional:            true,
 						ElementType:         types.StringType,
-						Validators: []validator.List{
-							listvalidator.ValueStringsAre(),
+						Validators: []validator.Set{
+							setvalidator.ValueStringsAre(),
 						},
 					},
-					"name": schema.ListAttribute{
+					"name": schema.SetAttribute{
 						MarkdownDescription: "Corresponds to `HOST NAME 'fqdn'` expression",
 						Optional:            true,
 						ElementType:         types.StringType,
-						Validators: []validator.List{
-							listvalidator.ValueStringsAre(),
+						Validators: []validator.Set{
+							setvalidator.ValueStringsAre(),
 						},
 					},
-					"regexp": schema.ListAttribute{
+					"regexp": schema.SetAttribute{
 						MarkdownDescription: "Corresponds to `HOST REGEXP 'regexp'` expression",
 						Optional:            true,
 						ElementType:         types.StringType,
-						Validators: []validator.List{
-							listvalidator.ValueStringsAre(),
+						Validators: []validator.Set{
+							setvalidator.ValueStringsAre(),
 						},
 					},
-					"like": schema.ListAttribute{
+					"like": schema.SetAttribute{
 						MarkdownDescription: "Corresponds to `HOST LIKE 'like template'` expression",
 						Optional:            true,
 						ElementType:         types.StringType,
-						Validators: []validator.List{
-							listvalidator.ValueStringsAre(),
+						Validators: []validator.Set{
+							setvalidator.ValueStringsAre(),
 						},
 					},
 				},
@@ -230,6 +233,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
+	userModel.ID = types.StringValue(userModel.Name)
 	user, err := userModel.ToClickHouseClientUser()
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -278,6 +282,7 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	planUser.ID = types.StringValue(planUser.Name)
 
 	user, err := planUser.ToClickHouseClientUser()
 	if err != nil {
@@ -345,6 +350,7 @@ func (r *UserResource) ImportState(ctx context.Context, req resource.ImportState
 
 	emptyPassword := ""
 	stateUser := UserResourceModel{
+		ID:              types.StringValue(user.Name),
 		Name:            user.Name,
 		IdentifiedWith:  identifiedWith{Sha256Password: &emptyPassword},
 		Hosts:           hosts,
