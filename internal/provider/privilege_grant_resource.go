@@ -130,6 +130,7 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 			)
 			return
 		}
+	} else {
 		resp.Diagnostics.AddError(
 			"Privilege grants already exist",
 			"Privilege grants already exist for the given grantee and access type. "+
