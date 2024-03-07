@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"regexp"
+	"strings"
 )
 
 type partitionByPlanModifier struct{}
@@ -95,4 +96,51 @@ func (m fullNamePlanModifier) PlanModifyString(ctx context.Context, req planmodi
 	}
 
 	resp.PlanValue = types.StringValue(db + "." + name)
+}
+
+type CompositeNamePlanModifier struct {
+	paths     []path.Path
+	separator string
+}
+
+func NewCompositePlanModifier(p []path.Path, sep string) CompositeNamePlanModifier {
+	return CompositeNamePlanModifier{paths: p, separator: sep}
+}
+
+func NewCompositePlanModifierFromStr(p []string, sep string) CompositeNamePlanModifier {
+	paths := make([]path.Path, 0, len(p))
+
+	for _, s := range p {
+		paths = append(paths, path.Root(s))
+	}
+
+	return CompositeNamePlanModifier{paths: paths, separator: sep}
+}
+
+func (m CompositeNamePlanModifier) Description(_ context.Context) string {
+	return ""
+}
+
+func (m CompositeNamePlanModifier) MarkdownDescription(_ context.Context) string {
+	return ""
+}
+
+func (m CompositeNamePlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// Do nothing if there is an unknown configuration value, otherwise interpolation gets messed up.
+	if req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	var values []string
+	for _, p := range m.paths {
+		var value string
+		resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, p, &value)...)
+		values = append(values, value)
+	}
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.PlanValue = types.StringValue(strings.Join(values, m.separator))
 }

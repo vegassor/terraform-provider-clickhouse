@@ -23,3 +23,7 @@ Grant of ClickHouse role to user or another role
 ### Optional
 
 - `with_admin_option` (Boolean) Whether to grant role with admin option or not
+
+### Read-Only
+
+- `id` (String) The ID of this resource.

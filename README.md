@@ -24,6 +24,8 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
     - [x] MergeTree family
     - [ ] RabbitMQ table
   - [ ] Implement import
+  - [ ] Row policy resource
+  - [ ] Named collections resource
   - [x] Table
     - [x] Add support for `settings` block
     - [x] Add `full_name` output as a computed field, equal to `db_name.table_name`
