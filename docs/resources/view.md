@@ -24,3 +24,4 @@ ClickHouse view. See: https://clickhouse.com/docs/en/sql-reference/statements/cr
 ### Read-Only
 
 - `full_name` (String) ClickHouse view name in `database.view_name` format
+- `id` (String) The ID of this resource.

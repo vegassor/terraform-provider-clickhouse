@@ -29,7 +29,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
     - [x] Add `full_name` output as a computed field, equal to `db_name.table_name`
 - [ ] Add datasources
 - [ ] Tests
-  - [ ] Acceptance tests
+  - [x] Acceptance tests
   - [x] Test more ClickHouse versions
   - [ ] Run SQL tests in parallel
 - [ ] Release
