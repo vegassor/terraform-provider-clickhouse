@@ -11,24 +11,23 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
 - [ ] Provider
   - [x] Add HTTP (port 8123) configuration support
 - [ ] Resources
+  - [x] Implement import
   - [x] Handle missing resources: do not fail if a resource does not exist, but set empty state
-  - [x] Role resource
   - [x] Grant privilege resource
     - [ ] Check if grants break the resource and cause re-creation on every plan
     - [ ] Implement partial revoke support
+  - [x] Role resource
   - [x] Grant role resource
-  - [ ] Dictionary resource
   - [x] View resource
-  - [ ] MatView resource
-  - [ ] Complex table resources
-    - [x] MergeTree family
-    - [ ] RabbitMQ table
-  - [x] Implement import
   - [ ] Row policy resource
   - [ ] Named collections resource
+  - [ ] Dictionary resource
+  - [ ] MatView resource
   - [x] Table
     - [x] Add support for `settings` block
     - [x] Add `full_name` output as a computed field, equal to `db_name.table_name`
+    - [x] MergeTree family
+    - [x] RabbitMQ table
 - [ ] Add datasources
 - [ ] Tests
   - [x] Acceptance tests

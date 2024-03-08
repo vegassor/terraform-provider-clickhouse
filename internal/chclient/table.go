@@ -6,6 +6,7 @@ import (
 	"github.com/emirpasic/gods/v2/sets/hashset"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -418,6 +419,10 @@ func (client *ClickHouseClient) ResetTableSettings(ctx context.Context, db, tabl
 }
 
 func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
+	if reflect.DeepEqual(currentTable.Columns, desiredTable.Columns) {
+		return nil
+	}
+
 	desiredColsSet := hashset.New[string](desiredTable.Columns.Names()...)
 	currentColsSet := hashset.New[string](currentTable.Columns.Names()...)
 	oldCols := currentColsSet.Intersection(desiredColsSet)
