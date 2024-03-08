@@ -64,40 +64,6 @@ func (m partitionByPlanModifier) PlanModifyList(ctx context.Context, req planmod
 	resp.PlanValue = val
 }
 
-type fullNamePlanModifier struct{}
-
-func (m fullNamePlanModifier) Description(_ context.Context) string {
-	return "Constructs full_name from database and table name."
-}
-
-func (m fullNamePlanModifier) MarkdownDescription(_ context.Context) string {
-	return "Constructs `full_name` from `database` and table's `name`."
-}
-
-func (m fullNamePlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	// Do nothing if there is an unknown configuration value, otherwise interpolation gets messed up.
-	if req.ConfigValue.IsUnknown() {
-		return
-	}
-
-	var db, name string
-	resp.Diagnostics.Append(
-		req.Plan.GetAttribute(ctx, path.Root("database"), &db)...,
-	)
-	resp.Diagnostics.Append(
-		req.Plan.GetAttribute(ctx, path.Root("name"), &name)...,
-	)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	if db == "" || name == "" {
-		return
-	}
-
-	resp.PlanValue = types.StringValue(db + "." + name)
-}
-
 type CompositeNamePlanModifier struct {
 	paths     []path.Path
 	separator string
@@ -118,11 +84,11 @@ func NewCompositePlanModifierFromStr(p []string, sep string) CompositeNamePlanMo
 }
 
 func (m CompositeNamePlanModifier) Description(_ context.Context) string {
-	return ""
+	return "Takes multiple values from config and combines them into a single string using a separator."
 }
 
 func (m CompositeNamePlanModifier) MarkdownDescription(_ context.Context) string {
-	return ""
+	return "Takes multiple values from config and combines them into a single string using a separator."
 }
 
 func (m CompositeNamePlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {

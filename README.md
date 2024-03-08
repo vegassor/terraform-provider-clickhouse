@@ -23,7 +23,7 @@ Once you've written your provider, you'll want to [publish it on the Terraform R
   - [ ] Complex table resources
     - [x] MergeTree family
     - [ ] RabbitMQ table
-  - [ ] Implement import
+  - [x] Implement import
   - [ ] Row policy resource
   - [ ] Named collections resource
   - [x] Table

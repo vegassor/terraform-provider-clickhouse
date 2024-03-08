@@ -55,11 +55,11 @@ func (r *ViewResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 			"full_name": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse view name in `database.view_name` format",
 				Computed:            true,
-				PlanModifiers:       []planmodifier.String{fullNamePlanModifier{}},
+				PlanModifiers:       []planmodifier.String{NewCompositePlanModifierFromStr([]string{"database", "name"}, ".")},
 			},
 			"id": schema.StringAttribute{
 				Computed:      true,
-				PlanModifiers: []planmodifier.String{fullNamePlanModifier{}},
+				PlanModifiers: []planmodifier.String{NewCompositePlanModifierFromStr([]string{"database", "name"}, ".")},
 			},
 			"query": schema.StringAttribute{
 				MarkdownDescription: "View definition query. It should be a valid SELECT statement.",
