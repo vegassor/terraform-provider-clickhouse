@@ -22,11 +22,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 	"regexp"
+	"slices"
 	"strings"
 )
 
 var _ resource.Resource = &TableResource{}
 var _ resource.ResourceWithImportState = &TableResource{}
+var enginesRequiresReplaceIfSettingsChanges = []string{"RabbitMQ"}
 
 func NewTableResource() resource.Resource {
 	return &TableResource{}
@@ -105,25 +107,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"engine": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse table engine. See: https://clickhouse.com/docs/en/engines/table-engines",
 				Required:            true,
-				Validators: []validator.String{
-					stringvalidator.OneOf(
-						"Memory",
-						"Buffer",
-
-						"MergeTree",
-						"ReplacingMergeTree",
-						"SummingMergeTree",
-						"AggregatingMergeTree",
-						"CollapsingMergeTree",
-						"VersionedCollapsingMergeTree",
-						"GraphiteMergeTree",
-
-						"Log",
-						"TinyLog",
-						"StripeLog",
-					),
-				},
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"engine_parameters": schema.ListAttribute{
 				Optional:            true,
@@ -163,7 +147,24 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Computed:            true,
 				ElementType:         types.StringType,
 				MarkdownDescription: "Values to fill SETTINGS clause.",
-				PlanModifiers:       []planmodifier.Map{mapplanmodifier.UseStateForUnknown()},
+				PlanModifiers: []planmodifier.Map{
+					mapplanmodifier.UseStateForUnknown(),
+					mapplanmodifier.RequiresReplaceIf(
+						func(ctx context.Context, req planmodifier.MapRequest, resp *mapplanmodifier.RequiresReplaceIfFuncResponse) {
+							var engine string
+							resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("engine"), &engine)...)
+							if resp.Diagnostics.HasError() {
+								return
+							}
+
+							if slices.Contains(enginesRequiresReplaceIfSettingsChanges, engine) {
+								resp.RequiresReplace = true
+							}
+						},
+						"settings",
+						"",
+					),
+				},
 			},
 			"columns": schema.ListNestedAttribute{
 				Required:            true,
@@ -366,7 +367,12 @@ func (r *TableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	err := r.client.DropTable(ctx, table, true)
+	checkIfTableEmpty := true
+	if slices.Contains(enginesRequiresReplaceIfSettingsChanges, model.Engine) {
+		checkIfTableEmpty = false
+	}
+
+	err := r.client.DropTable(ctx, table, checkIfTableEmpty)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot delete table",

@@ -6,6 +6,7 @@ import (
 	"github.com/emirpasic/gods/v2/sets/hashset"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -366,6 +367,10 @@ func (client *ClickHouseClient) ModifyOrderBy(ctx context.Context, db, table str
 }
 
 func (client *ClickHouseClient) AlterTableSettings(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
+	if reflect.DeepEqual(currentTable.Settings, desiredTable.Settings) {
+		return nil
+	}
+
 	desiredSettingsSet := hashset.New[string]()
 	for k := range desiredTable.Settings {
 		desiredSettingsSet.Add(k)
@@ -418,6 +423,10 @@ func (client *ClickHouseClient) ResetTableSettings(ctx context.Context, db, tabl
 }
 
 func (client *ClickHouseClient) AlterColumns(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
+	if reflect.DeepEqual(currentTable.Columns, desiredTable.Columns) {
+		return nil
+	}
+
 	desiredColsSet := hashset.New[string](desiredTable.Columns.Names()...)
 	currentColsSet := hashset.New[string](currentTable.Columns.Names()...)
 	oldCols := currentColsSet.Intersection(desiredColsSet)
