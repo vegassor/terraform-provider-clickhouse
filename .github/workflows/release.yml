@@ -4,14 +4,15 @@ name: Release
 # "v*" (e.g. v0.1.0) is created.
 on:
   push:
-    tags:
-      - 'v*'
+#    tags:
+#      - 'v*'
 
 permissions:
   contents: write # To create a release
 
 jobs:
   goreleaser:
+    environment: release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
