@@ -151,9 +151,7 @@ func (r *TableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 					mapplanmodifier.UseStateForUnknown(),
 					mapplanmodifier.RequiresReplaceIf(
 						func(ctx context.Context, req planmodifier.MapRequest, resp *mapplanmodifier.RequiresReplaceIfFuncResponse) {
-							enginesRequiresReplaceIfSettingsChanges := []string{"RabbitMQ"}
 							var engine string
-
 							resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("engine"), &engine)...)
 							if resp.Diagnostics.HasError() {
 								return
