@@ -4,8 +4,8 @@ name: Release
 # "v*" (e.g. v0.1.0) is created.
 on:
   push:
-#    tags:
-#      - 'v*'
+    tags:
+      - 'v*'
 
 permissions:
   contents: write # To create a release
@@ -31,7 +31,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
-          args: release --clean --snapshot
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
