@@ -13,7 +13,7 @@ func TestAccRoleGrantResource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: chRolePrivilegeResource(false),
+				Config: chRoleGrantResource(false),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("clickhouse_role.grantee", "name", "grantee_role"),
 					resource.TestCheckResourceAttr("clickhouse_role.granted", "name", "granted_role"),
@@ -25,7 +25,7 @@ func TestAccRoleGrantResource(t *testing.T) {
 				),
 			},
 			{
-				Config:            chRolePrivilegeResource(false),
+				Config:            chRoleGrantResource(false),
 				ResourceName:      "clickhouse_role_grant.test",
 				ImportState:       true,
 				ImportStateId:     "granted_role/grantee_role",
@@ -41,7 +41,7 @@ func TestAccRoleGrantResourceWithAdminOption(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: chRolePrivilegeResource(true),
+				Config: chRoleGrantResource(true),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("clickhouse_role.grantee", "name", "grantee_role"),
 					resource.TestCheckResourceAttr("clickhouse_role.granted", "name", "granted_role"),
@@ -53,7 +53,7 @@ func TestAccRoleGrantResourceWithAdminOption(t *testing.T) {
 				),
 			},
 			{
-				Config:            chRolePrivilegeResource(true),
+				Config:            chRoleGrantResource(true),
 				ResourceName:      "clickhouse_role_grant.test",
 				ImportState:       true,
 				ImportStateId:     "granted_role/grantee_role",
@@ -63,7 +63,7 @@ func TestAccRoleGrantResourceWithAdminOption(t *testing.T) {
 	})
 }
 
-func chRolePrivilegeResource(withAdminOption bool) string {
+func chRoleGrantResource(withAdminOption bool) string {
 	providerConfig := chProviderConfig()
 	resources := fmt.Sprintf(`
 resource "clickhouse_role" "grantee" {

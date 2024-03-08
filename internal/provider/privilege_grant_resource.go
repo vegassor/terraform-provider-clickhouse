@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
+	"strings"
 )
 
 var _ resource.Resource = &PrivilegeGrantResource{}
@@ -37,6 +39,7 @@ type GrantRecord struct {
 }
 
 type PrivilegeGrantResourceModel struct {
+	ID         types.String  `tfsdk:"id"`
 	Grantee    string        `tfsdk:"grantee"`
 	AccessType string        `tfsdk:"access_type"`
 	Grants     []GrantRecord `tfsdk:"grants"`
@@ -51,6 +54,12 @@ func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.Schema
 		MarkdownDescription: "Grant privileges to a user or role. Corresponds to `system.grants` table. " +
 			"Note, that pair (`grantee`, `access_type`) must be unique for every resource.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					NewCompositePlanModifierFromStr([]string{"access_type", "grantee"}, "/"),
+				},
+			},
 			"grantee": schema.StringAttribute{
 				MarkdownDescription: "User or role to grant the role to",
 				Required:            true,
@@ -159,16 +168,16 @@ func (r *PrivilegeGrantResource) Create(ctx context.Context, req resource.Create
 }
 
 func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var stateModel PrivilegeGrantResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &stateModel)...)
+	var model PrivilegeGrantResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	receivedGrants, err := r.client.GetPrivilegeGrants(ctx, stateModel.Grantee, stateModel.AccessType)
+	receivedGrants, err := r.client.GetPrivilegeGrants(ctx, model.Grantee, model.AccessType)
 	if err != nil {
-		name := fmt.Sprintf("(grantee=%s, access_type=%s)", stateModel.Grantee, stateModel.AccessType)
+		name := fmt.Sprintf("(grantee=%s, access_type=%s)", model.Grantee, model.AccessType)
 		handleNotFoundError(ctx, err, resp, "privilege grant", name)
 		return
 	}
@@ -186,12 +195,8 @@ func (r *PrivilegeGrantResource) Read(ctx context.Context, req resource.ReadRequ
 		})
 	}
 
-	readModel := PrivilegeGrantResourceModel{
-		Grantee:    stateModel.Grantee,
-		AccessType: stateModel.AccessType,
-		Grants:     grants,
-	}
-	resp.Diagnostics.Append(resp.State.Set(ctx, readModel)...)
+	model.Grants = grants
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
 
 func (r *PrivilegeGrantResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -225,4 +230,19 @@ func (r *PrivilegeGrantResource) Delete(ctx context.Context, req resource.Delete
 }
 
 func (r *PrivilegeGrantResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.Split(req.ID, "/")
+
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Invalid import ID",
+			"Import ID should be in `access_type/grantee` format",
+		)
+		return
+	}
+	accessType := parts[0]
+	grantee := parts[1]
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), req.ID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("access_type"), accessType)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("grantee"), grantee)...)
 }
