@@ -367,6 +367,10 @@ func (client *ClickHouseClient) ModifyOrderBy(ctx context.Context, db, table str
 }
 
 func (client *ClickHouseClient) AlterTableSettings(ctx context.Context, currentTable, desiredTable ClickHouseTable) error {
+	if reflect.DeepEqual(currentTable.Settings, desiredTable.Settings) {
+		return nil
+	}
+
 	desiredSettingsSet := hashset.New[string]()
 	for k := range desiredTable.Settings {
 		desiredSettingsSet.Add(k)
