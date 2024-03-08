@@ -25,6 +25,10 @@ ClickHouse user
 - `default_database` (String) Default database for user
 - `hosts` (Attributes) Hosts from which user is allowed to connect to ClickHouse. If unset, then ANY host. If set to empty map ({}) - NONE - user won't be able to connect. See https://clickhouse.com/docs/en/sql-reference/statements/create/user#user-host (see [below for nested schema](#nestedatt--hosts))
 
+### Read-Only
+
+- `id` (String) The ID of this resource.
+
 <a id="nestedatt--identified_with"></a>
 ### Nested Schema for `identified_with`
 
@@ -51,7 +55,7 @@ Optional:
 
 Optional:
 
-- `ip` (List of String) Corresponds to `HOST IP 'ip'` expression
-- `like` (List of String) Corresponds to `HOST LIKE 'like template'` expression
-- `name` (List of String) Corresponds to `HOST NAME 'fqdn'` expression
-- `regexp` (List of String) Corresponds to `HOST REGEXP 'regexp'` expression
+- `ip` (Set of String) Corresponds to `HOST IP 'ip'` expression
+- `like` (Set of String) Corresponds to `HOST LIKE 'like template'` expression
+- `name` (Set of String) Corresponds to `HOST NAME 'fqdn'` expression
+- `regexp` (Set of String) Corresponds to `HOST REGEXP 'regexp'` expression

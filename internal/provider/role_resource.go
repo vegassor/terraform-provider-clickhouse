@@ -2,9 +2,11 @@ package provider
 
 import (
 	"context"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
 )
 
@@ -20,7 +22,8 @@ type RoleResource struct {
 }
 
 type RoleResourceModel struct {
-	Name string `tfsdk:"name"`
+	ID   types.String `tfsdk:"id"`
+	Name string       `tfsdk:"name"`
 }
 
 func (r *RoleResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -31,6 +34,9 @@ func (r *RoleResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse role",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Role name in ClickHouse",
 				Required:            true,
@@ -65,6 +71,7 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
+	model.ID = types.StringValue(model.Name)
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
 
@@ -82,7 +89,7 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	model = RoleResourceModel{Name: receivedRoleName}
+	model = RoleResourceModel{Name: receivedRoleName, ID: types.StringValue(receivedRoleName)}
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 }
 
@@ -91,6 +98,7 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	var planModel RoleResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &stateModel)...)
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &planModel)...)
+	planModel.ID = types.StringValue(planModel.Name)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -126,4 +134,5 @@ func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 }
 
 func (r *RoleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 }

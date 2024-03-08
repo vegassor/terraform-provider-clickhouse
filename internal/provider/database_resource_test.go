@@ -2,52 +2,62 @@ package provider
 
 import (
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAccExampleResource(t *testing.T) {
+func TestAccDatabaseResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccExampleResourceConfig("one"),
+				Config: chDatabaseResource("mydb"),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("clickhouse_database.test", "configurable_attribute", "one"),
-					resource.TestCheckResourceAttr("clickhouse_database.test", "defaulted", "example value when not configured"),
-					resource.TestCheckResourceAttr("clickhouse_database.test", "id", "example-id"),
+					resource.TestCheckResourceAttr("clickhouse_database.test", "name", "mydb"),
+					resource.TestCheckResourceAttr("clickhouse_database.test", "engine", "Atomic"),
+					resource.TestCheckResourceAttr("clickhouse_database.test", "comment", ""),
 				),
-			},
-			// ImportState testing
-			{
-				ResourceName:      "clickhouse_database.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-				// This is not normally necessary, but is here because this
-				// example code does not have an actual upstream service.
-				// Once the Read method is able to refresh information from
-				// the upstream service, this can be removed.
-				ImportStateVerifyIgnore: []string{"configurable_attribute", "defaulted"},
 			},
 			// Update and Read testing
 			{
-				Config: testAccExampleResourceConfig("two"),
+				Config: chDatabaseResource("yourdb"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(
+							"clickhouse_database.test",
+							plancheck.ResourceActionReplace,
+						),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("clickhouse_database.test", "configurable_attribute", "two"),
+					resource.TestCheckResourceAttr("clickhouse_database.test", "name", "yourdb"),
+					resource.TestCheckResourceAttr("clickhouse_database.test", "engine", "Atomic"),
+					resource.TestCheckResourceAttr("clickhouse_database.test", "comment", ""),
 				),
+			},
+			// Check if resource can be imported
+			{
+				Config:            chDatabaseResource("yourdb"),
+				ResourceName:      "clickhouse_database.test",
+				ImportState:       true,
+				ImportStateId:     "yourdb",
+				ImportStateVerify: true,
 			},
 			// Delete testing automatically occurs in TestCase
 		},
 	})
 }
 
-func testAccExampleResourceConfig(configurableAttribute string) string {
-	return fmt.Sprintf(`
+func chDatabaseResource(name string) string {
+	providerConfig := chProviderConfig()
+	resources := fmt.Sprintf(`
 resource "clickhouse_database" "test" {
-  configurable_attribute = %[1]q
+  name = %[1]q
 }
-`, configurableAttribute)
+`, name)
+	return providerConfig + resources
 }

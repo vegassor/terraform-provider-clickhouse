@@ -29,6 +29,7 @@ type DatabaseResource struct {
 }
 
 type DatabaseResourceModel struct {
+	ID      types.String `tfsdk:"id"`
 	Name    types.String `tfsdk:"name"`
 	Engine  types.String `tfsdk:"engine"`
 	Comment types.String `tfsdk:"comment"`
@@ -43,6 +44,9 @@ func (r *DatabaseResource) Schema(ctx context.Context, req resource.SchemaReques
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "ClickHouse database",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed: true,
+			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Name of a database",
 				Optional:            true,
@@ -83,11 +87,12 @@ func (r *DatabaseResource) Configure(ctx context.Context, req resource.Configure
 }
 
 func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data *DatabaseResourceModel
+	var data DatabaseResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	data.ID = types.StringValue(data.Name.ValueString())
 
 	err := r.client.CreateDatabase(
 		ctx,
@@ -108,12 +113,11 @@ func (r *DatabaseResource) Create(ctx context.Context, req resource.CreateReques
 
 	tflog.Debug(ctx, "Created a clickhouse_database resource", dict{"name": data.Name.ValueString()})
 
-	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var db *DatabaseResourceModel
+	var db DatabaseResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &db)...)
 
 	if resp.Diagnostics.HasError() {
@@ -126,6 +130,7 @@ func (r *DatabaseResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	db.ID = types.StringValue(receivedDb.Name)
 	db.Name = types.StringValue(receivedDb.Name)
 	db.Comment = types.StringValue(receivedDb.Comment)
 	db.Engine = types.StringValue(receivedDb.Engine.String())
@@ -138,7 +143,7 @@ func (r *DatabaseResource) Update(ctx context.Context, req resource.UpdateReques
 }
 
 func (r *DatabaseResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data *DatabaseResourceModel
+	var data DatabaseResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {

@@ -52,8 +52,46 @@ jobs:
           git diff --compact-summary --exit-code || \
             (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
 
-  test:
-    name: Terraform provider SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }},ch=${{ matrix.clickhouse-version }})
+  testacc:
+    name: Acceptance tests (tf=${{ matrix.terraform }},ch=${{ matrix.clickhouse-version }})
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
+      matrix:
+        terraform:
+          - '1.7.*'
+        clickhouse-version:
+          - '23.12'
+          - '24.1'
+          - '24.2'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ matrix.terraform }}
+          terraform_wrapper: false
+      - name: Prepare for tests
+        env:
+          CLICKHOUSE_VERSION: ${{ matrix.clickhouse-version }}
+        run: |
+          make init-config
+          make chup
+      - name: Run acceptance tests
+        timeout-minutes: 15
+        env:
+          TF_CLI_CONFIG_FILE: ${{ github.workspace }}/.terraformrc
+        run: make testacc
+
+  testsql:
+    name: SQL tests (tf=${{ matrix.terraform }},protocol=${{ matrix.clickhouse-protocol }},ch=${{ matrix.clickhouse-version }})
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20

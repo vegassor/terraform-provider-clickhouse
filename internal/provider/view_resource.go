@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
+	"strings"
 )
 
 var _ resource.Resource = &ViewResource{}
@@ -23,6 +25,7 @@ type ViewResource struct {
 }
 
 type ViewResourceModel struct {
+	ID       types.String `tfsdk:"id"`
 	Database string       `tfsdk:"database"`
 	Name     string       `tfsdk:"name"`
 	FullName types.String `tfsdk:"full_name"`
@@ -52,7 +55,11 @@ func (r *ViewResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 			"full_name": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse view name in `database.view_name` format",
 				Computed:            true,
-				PlanModifiers:       []planmodifier.String{fullNamePlanModifier{}},
+				PlanModifiers:       []planmodifier.String{NewCompositePlanModifierFromStr([]string{"database", "name"}, ".")},
+			},
+			"id": schema.StringAttribute{
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{NewCompositePlanModifierFromStr([]string{"database", "name"}, ".")},
 			},
 			"query": schema.StringAttribute{
 				MarkdownDescription: "View definition query. It should be a valid SELECT statement.",
@@ -162,4 +169,21 @@ func (r *ViewResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 }
 
 func (r *ViewResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.Split(req.ID, ".")
+
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Invalid import ID",
+			"Import ID should be in `database.view_name` format",
+		)
+		return
+	}
+	db := parts[0]
+	view := parts[1]
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), req.ID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("full_name"), req.ID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("database"), db)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), view)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("query"), "")...)
 }

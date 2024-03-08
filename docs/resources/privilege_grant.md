@@ -21,6 +21,10 @@ Grant privileges to a user or role. Corresponds to `system.grants` table. Note, 
 - `grantee` (String) User or role to grant the role to
 - `grants` (Attributes Set) Set of privileges to grant. Each privilege is a separate record with fields `database`, `table`, `columns` and `with_grant_option` (see [below for nested schema](#nestedatt--grants))
 
+### Read-Only
+
+- `id` (String) The ID of this resource.
+
 <a id="nestedatt--grants"></a>
 ### Nested Schema for `grants`
 
