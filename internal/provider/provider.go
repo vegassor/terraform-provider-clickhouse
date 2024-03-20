@@ -28,7 +28,6 @@ type ClickHouseProvider struct {
 	version string
 }
 
-// ClickHouseProviderModel describes the provider data model.
 type ClickHouseProviderModel struct {
 	Username types.String `tfsdk:"username"`
 	Password types.String `tfsdk:"password"`
@@ -56,7 +55,7 @@ func (p *ClickHouseProvider) Schema(ctx context.Context, req provider.SchemaRequ
 			},
 			"port": schema.Int64Attribute{
 				Optional:    true,
-				Description: "ClickHouse port, e.g. `9000`",
+				Description: "ClickHouse port, e.g. 9000. If not specified, default port will be used (8123 for `http` and 9000 for `native`)",
 			},
 			"username": schema.StringAttribute{
 				MarkdownDescription: "ClickHouse user that have enough permissions to manage databases, users, tables, etc.",

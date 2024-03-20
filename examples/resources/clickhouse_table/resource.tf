@@ -5,20 +5,30 @@ resource "clickhouse_database" "my_db" {
 }
 
 resource "clickhouse_table" "my_table" {
-  database = clickhouse_database.my_db.name
+  database = "default"
   name     = "my_table"
-  engine   = "Memory"
-  comment  = "Some comment"
+
+  engine       = "ReplacingMergeTree"
+  order_by     = ["id", "id2"]
+  partition_by = "toYYYYMM(time)"
 
   columns = [
     {
-      name    = "col1"
-      type    = "String"
-      comment = "col1 comment"
+      name = "time"
+      type = "DateTime"
     },
     {
-      name = "col2"
-      type = "Float64"
+      name = "id"
+      type = "Int64"
+    },
+    {
+      name = "id2"
+      type = "Int64"
+    },
+    {
+      name     = "value"
+      type     = "Float64"
+      nullable = true
     }
   ]
 }

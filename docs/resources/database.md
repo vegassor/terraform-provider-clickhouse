@@ -38,3 +38,12 @@ resource "clickhouse_database" "in_mem_db" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# Database can be imported by specifying database name
+terraform import clickhouse_user.my_db my_db
+```
