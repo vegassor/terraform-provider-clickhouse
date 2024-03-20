@@ -19,6 +19,8 @@ resource "clickhouse_role" "my_role" {
   name = "my_role"
 }
 
+# GRANT SELECT(col1) ON default.my_table TO my_role
+# GRANT SELECT ON system.tables TO my_role
 resource "clickhouse_privilege_grant" "to_role" {
   grantee     = clickhouse_role.my_role.name
   access_type = "SELECT"

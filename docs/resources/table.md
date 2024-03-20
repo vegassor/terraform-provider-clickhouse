@@ -20,20 +20,30 @@ resource "clickhouse_database" "my_db" {
 }
 
 resource "clickhouse_table" "my_table" {
-  database = clickhouse_database.my_db.name
+  database = "default"
   name     = "my_table"
-  engine   = "Memory"
-  comment  = "Some comment"
+
+  engine       = "ReplacingMergeTree"
+  order_by     = ["id", "id2"]
+  partition_by = "toYYYYMM(time)"
 
   columns = [
     {
-      name    = "col1"
-      type    = "String"
-      comment = "col1 comment"
+      name = "time"
+      type = "DateTime"
     },
     {
-      name = "col2"
-      type = "Float64"
+      name = "id"
+      type = "Int64"
+    },
+    {
+      name = "id2"
+      type = "Int64"
+    },
+    {
+      name     = "value"
+      type     = "Float64"
+      nullable = true
     }
   ]
 }
@@ -53,10 +63,10 @@ resource "clickhouse_table" "my_table" {
 
 - `comment` (String) Comment for the table
 - `engine_parameters` (List of String) Parameters for engine. Will be transformed to `engine(param1, param2, ...)`
-- `order_by` (List of String) Values to fill ORDER BY clause.
-- `partition_by` (String) Expression to fill PARTITION BY clause.
-- `primary_key` (List of String) Values to fill PRIMARY KEY clause.
-- `settings` (Map of String) Values to fill SETTINGS clause.
+- `order_by` (List of String) Values to fill `ORDER BY` clause.
+- `partition_by` (String) Expression to fill `PARTITION BY` clause.
+- `primary_key` (List of String) Values to fill `PRIMARY KEY` clause.
+- `settings` (Map of String) Values to fill `SETTINGS` clause.
 
 ### Read-Only
 
@@ -75,3 +85,12 @@ Optional:
 
 - `comment` (String) Comment for a column
 - `nullable` (Boolean) Whether a column can contain NULL values
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# Table can be imported by specifying database and table name
+terraform import clickhouse_table.my_table my_db.my_table
+```

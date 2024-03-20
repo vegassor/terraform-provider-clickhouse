@@ -14,12 +14,11 @@ description: |-
 
 ```terraform
 provider "clickhouse" {
-  username = "default"
-  password = ""
   protocol = "http"
-
-  host = ""
-  port = 8123
+  host     = "localhost"
+  port     = 8123
+  username = "default"
+  password = "mysecretpassword"
 }
 ```
 
@@ -34,5 +33,5 @@ provider "clickhouse" {
 
 ### Optional
 
-- `port` (Number) ClickHouse port, e.g. `9000`
+- `port` (Number) ClickHouse port, e.g. 9000. If not specified, default port will be used (8123 for `http` and 9000 for `native`)
 - `protocol` (String) Protocol for connection to ClickHouse. Must be one of `http` or `native`
