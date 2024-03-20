@@ -51,8 +51,8 @@ func (r *PrivilegeGrantResource) Metadata(ctx context.Context, req resource.Meta
 
 func (r *PrivilegeGrantResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Grant privileges to a user or role. Corresponds to `system.grants` table. " +
-			"Note, that pair (`grantee`, `access_type`) must be unique for every resource.",
+		MarkdownDescription: "Grant privileges to a user or role. Corresponds to `system.grants` table.\n" +
+			"**WARNING:** Note, that pair (`grantee`, `access_type`) must be unique for every resource.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
