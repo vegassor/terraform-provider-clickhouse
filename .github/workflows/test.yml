@@ -63,9 +63,9 @@ jobs:
         terraform:
           - '1.7.*'
         clickhouse-version:
-          - '23.12'
           - '24.1'
           - '24.2'
+          - '24.3'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
