@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
-	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -105,12 +107,25 @@ func (p *ClickHouseProvider) Configure(ctx context.Context, req provider.Configu
 	}
 	addr = fmt.Sprintf("%s:%d", data.Host.ValueString(), port)
 
+	var password string
+	if !data.Password.IsNull() {
+		password = data.Password.ValueString()
+	} else if pwEnv := os.Getenv("CLICKHOUSE_PASSWORD"); pwEnv != "" {
+		password = pwEnv
+	} else {
+		resp.Diagnostics.AddError(
+			"ClickHouse password is not set",
+			"Either set password attribute or export CLICKHOUSE_PASSWORD environment variable",
+		)
+		return
+	}
+
 	client, err := chclient.NewClickHouseClient(&clickhouse.Options{
 		Addr: []string{addr},
 		Auth: clickhouse.Auth{
 			Database: "default",
 			Username: data.Username.ValueString(),
-			Password: data.Password.ValueString(),
+			Password: password,
 		},
 		Settings: clickhouse.Settings{
 			"max_execution_time": 60,
