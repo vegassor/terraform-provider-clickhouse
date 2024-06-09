@@ -1,6 +1,6 @@
 module github.com/vegassor/terraform-provider-clickhouse
 
-go 1.21
+go 1.22
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.25.0
