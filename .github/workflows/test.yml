@@ -104,9 +104,9 @@ jobs:
           - 'native'
           - 'http'
         clickhouse-version:
-          - '23.12'
           - '24.1'
           - '24.2'
+          - '24.3'
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
