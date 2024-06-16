@@ -52,7 +52,7 @@ checks:
       - ['default', 'my_table', 'col2', 'Float64', 2, '', '', '']
 
 ---
-name: Add comment
+name: Add comment to table
 input:
   - name: table.tf
     content: |

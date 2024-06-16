@@ -91,7 +91,7 @@ input:
         ]
 
         settings = {
-          index_granularity           = "8192"
+          index_granularity = "8192"
         }
 
         lifecycle {
@@ -124,7 +124,7 @@ checks:
     result: [[1, 0]]
 
 ---
-name: Add settings
+name: Add settings to table
 input:
   - name: table.tf
     content: |

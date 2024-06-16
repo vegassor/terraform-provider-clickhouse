@@ -48,7 +48,7 @@ checks:
     result: [['default', 'my_table', '', 'ReplacingMergeTree', 'ReplacingMergeTree(time) PARTITION BY toYYYYMM(time) ORDER BY (id, id2) SETTINGS index_granularity = 8192', 'id, id2', 'id, id2', 1]]
 
 ---
-name: Create explicitly state engine params
+name: Create engine with explicitly set params
 input:
   - name: table.tf
     content: |

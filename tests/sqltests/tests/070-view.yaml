@@ -41,7 +41,7 @@ checks:
     result: [['default', 'my_view', 'View', 0, 'SELECT col1 AS x FROM default.my_table']]
 
 ---
-name: Update resource
+name: Update view resource
 input:
   - name: file.tf
     content: |

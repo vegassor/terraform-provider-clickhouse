@@ -1,5 +1,5 @@
 ---
-name: Create database resource
+name: Create user resource
 input:
   - name: user.tf
     content: |

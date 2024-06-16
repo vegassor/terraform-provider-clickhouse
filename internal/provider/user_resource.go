@@ -3,6 +3,9 @@ package provider
 import (
 	"context"
 	"errors"
+	"net"
+	"regexp"
+
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -12,8 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vegassor/terraform-provider-clickhouse/internal/chclient"
-	"net"
-	"regexp"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.

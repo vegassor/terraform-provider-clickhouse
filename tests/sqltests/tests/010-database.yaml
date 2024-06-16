@@ -9,7 +9,10 @@ input:
         comment = "Example DB"
       }
 checks:
-  - query: select database, engine, comment from system.databases where database = 'my_db'
+  - query: |
+      select database, engine, comment
+      from system.databases
+      where database = 'my_db'
     result: [['my_db', 'Atomic', 'Example DB']]
 ---
 name: Re-create database resource
