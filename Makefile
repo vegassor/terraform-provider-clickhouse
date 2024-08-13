@@ -30,8 +30,8 @@ testsql: build
 	cd tests && pytest -v -s --color=yes
 
 chup:
-	cd ${CH_DOCKER_DIR} && docker-compose up -d
+	cd ${CH_DOCKER_DIR} && docker compose up -d
 chdn:
-	cd ${CH_DOCKER_DIR} && docker-compose down
+	cd ${CH_DOCKER_DIR} && docker compose down
 
 chreset: chdn chup
