@@ -45,7 +45,7 @@ class ClickHouseTestInstallation:
     def prepare(self) -> None:
         """Up ClickHouse instance with docker compose"""
         result = subprocess.run(
-            ['docker' 'compose', 'up', '-d'],
+            ['docker', 'compose', 'up', '-d'],
             cwd=self.cwd,
             capture_output=True,
             text=True,
