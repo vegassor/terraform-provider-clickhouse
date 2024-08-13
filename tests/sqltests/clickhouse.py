@@ -13,7 +13,7 @@ from .types import TestCheck, TfChException
 
 
 def generate_random_string(length: int) -> str:
-    return ''.join(random.choice(string.ascii_letters) for _ in range(length))
+    return ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
 
 
 class UUIDEncoder(json.JSONEncoder):
