@@ -43,9 +43,9 @@ class ClickHouseTestInstallation:
 
     # TODO: Choose random port to allow parallel execution?
     def prepare(self) -> None:
-        """Up ClickHouse instance with docker-compose"""
+        """Up ClickHouse instance with docker compose"""
         result = subprocess.run(
-            ['docker-compose', 'up', '-d'],
+            ['docker' 'compose', 'up', '-d'],
             cwd=self.cwd,
             capture_output=True,
             text=True,
@@ -65,9 +65,9 @@ class ClickHouseTestInstallation:
             raise AssertionError(f'Expected {check.result}, got {result}')
 
     def cleanup(self) -> None:
-        """Delete ClickHouse instance with docker-compose"""
+        """Delete ClickHouse instance with docker compose"""
         result = subprocess.run(
-            ['docker-compose', 'down'],
+            ['docker', 'compose', 'down'],
             cwd=self.cwd,
             capture_output=True,
             text=True,
