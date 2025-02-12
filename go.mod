@@ -3,7 +3,7 @@ module github.com/vegassor/terraform-provider-clickhouse
 go 1.23
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.30.2
+	github.com/ClickHouse/clickhouse-go/v2 v2.31.0
 	github.com/emirpasic/gods/v2 v2.0.0-alpha
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
@@ -17,7 +17,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
-	github.com/ClickHouse/ch-go v0.64.0 // indirect
+	github.com/ClickHouse/ch-go v0.64.1 // indirect
 	github.com/Kunde21/markdownfmt/v3 v3.1.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.0 // indirect
